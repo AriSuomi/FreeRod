@@ -1,0 +1,12 @@
+# Build output and vcpkg dependencies
+build/
+vcpkg_installed/
+
+# Original game files (copyrighted)
+original/
+
+# User data, mods, and captures
+saves/
+mods/
+screenshots/
+export/
