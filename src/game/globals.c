@@ -157,6 +157,14 @@ int16_t globals_mouseStepX;		 /**< DS:0x5e2: cursor step, columns. */
 int16_t globals_mouseStepY;		 /**< DS:0x5e4: cursor step, rows. */
 uint8_t globals_joystickPresent; /**< DS:0x471d: joystick found. */
 uint8_t globals_joystickButtons; /**< DS:0x471c: joystick buttons. */
+int16_t globals_joystickX;		 /**< DS:0x4718: X from the center. */
+int16_t globals_joystickY;		 /**< DS:0x471a: Y from the center. */
+int16_t globals_joystickCenterX; /**< DS:0x471e: X count centered. */
+int16_t globals_joystickCenterY; /**< DS:0x4720: Y count centered. */
+int16_t globals_joystickLeft;	 /**< DS:0x4722: X below: left. */
+int16_t globals_joystickRight;	 /**< DS:0x4724: X above: right. */
+int16_t globals_joystickUp;		 /**< DS:0x4726: Y below: up. */
+int16_t globals_joystickDown;	 /**< DS:0x4728: Y above: down. */
 
 /* Music */
 

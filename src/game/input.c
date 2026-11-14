@@ -5,9 +5,8 @@
  * \brief	Timer, keyboard and mouse: the game's interrupt handlers and the
  * 			functions that read them.
  *
- * \details	Not ported yet: the joystick (port 201h; the port reports none),
- * 			demo playback (DS:0x610), the music and the PC speaker (Phase
- * 			5), and the timed event queue at DS:0x566.
+ * \details	Not ported yet: demo playback (DS:0x610), the music and the
+ * 			PC speaker (Phase 5).
  *
  ******************************************************************************/
 
@@ -39,6 +38,7 @@
 #define INPUT_MIN_CODE		 -30  /**< Lowest direction code. */
 
 #define INPUT_HELD_KEY		 0x01 /**< globals_buttonsHeld: click key. */
+#define INPUT_HELD_JOYSTICK	 0x02 /**< globals_buttonsHeld: joystick. */
 #define INPUT_HELD_MOUSE	 0x04 /**< globals_buttonsHeld: mouse button. */
 #define INPUT_SCAN_BACKSPACE 0x0e /**< Scan code of Backspace. */
 #define INPUT_SCAN_COMMA	 0x33 /**< Scan code of the comma key. */
@@ -92,14 +92,48 @@ static int16_t input__mouseStep(
  *
  * \brief	Set up the mouse, the timer and the keyboard handler.
  *
- * \details	Port of InitTimerAndInput (1000:1111). Not ported: the
- * 			joystick calibration (no joystick), the values it stores at
+ * \details	Port of InitTimerAndInput (1000:1111). A joystick is used
+ * 			when one answers at the game port (no demo). Its center is
+ * 			the mean of three reads; a stick moved more than half of that
+ * 			from the center counts as moved (globals_joystickLeft and the
+ * 			others). Not ported: the values it stores at
  * 			DS:0x8ef6..0x8efc and DS:0x79b0..0x79e0 (use unknown), the
  * 			critical-error handler (_harderr) and the speaker setup.
  *
  ******************************************************************************/
 void input_init(void) {
-	globals_joystickPresent = 0;
+	int16_t countX;
+	int16_t countY;
+	uint8_t buttons;
+
+	bool joystick = globals_demoMode == 0 &&
+		dos_joystickRead(&countX, &countY, &buttons);
+
+	if (joystick) {
+		globals_joystickPresent = 1;
+		input_readJoystick();
+
+		int16_t firstX = globals_joystickX;
+		int16_t firstY = globals_joystickY;
+
+		input_readJoystick();
+
+		int16_t secondX = globals_joystickX;
+		int16_t secondY = globals_joystickY;
+
+		input_readJoystick();
+
+		/* 16-bit sums, as in the original */
+		int16_t sumX = (int16_t)(firstX + secondX + globals_joystickX);
+		int16_t sumY = (int16_t)(firstY + secondY + globals_joystickY);
+
+		globals_joystickCenterX = (int16_t)(sumX / 3);
+		globals_joystickCenterY = (int16_t)(sumY / 3);
+		globals_joystickLeft = (int16_t)-(globals_joystickCenterX >> 1);
+		globals_joystickRight = (int16_t)(globals_joystickCenterX >> 1);
+		globals_joystickUp = (int16_t)-(globals_joystickCenterY >> 1);
+		globals_joystickDown = (int16_t)(globals_joystickCenterY >> 1);
+	}
 
 	bool useMouse = globals_demoMode == 0 && globals_mouseAllowed != 0;
 
@@ -143,8 +177,8 @@ void input_shutdown(void) {
  * \details	Port of TimerIsr (1000:1fe2), run 72.8 times a second. Every
  * 			4th tick the original also called the BIOS handler. While the
  * 			cursor is shown, held direction keys move it one pixel per
- * 			tick. Not ported: the speaker, demo playback, the music and
- * 			the joystick.
+ * 			tick, as does the joystick moved off its center. Not
+ * 			ported: the speaker, demo playback and the music.
  *
  ******************************************************************************/
 void input_timerInterrupt(void) {
@@ -171,6 +205,22 @@ void input_timerInterrupt(void) {
 	if (globals_keyboardBusy == 0) {
 		stepColumns = input__sign(globals_keyDirectionX);
 		stepRows = input__sign(globals_keyDirectionY);
+	}
+
+	if (globals_demoMode == 0 && globals_joystickPresent != 0) {
+		input_readJoystick();
+
+		if (globals_joystickX < globals_joystickLeft) {
+			stepColumns = -1;
+		} else if (globals_joystickX > globals_joystickRight) {
+			stepColumns = 1;
+		}
+
+		if (globals_joystickY < globals_joystickUp) {
+			stepRows = -1;
+		} else if (globals_joystickY > globals_joystickDown) {
+			stepRows = 1;
+		}
 	}
 
 	if (stepColumns != 0 || stepRows != 0) {
@@ -383,14 +433,54 @@ void input_mousePoll(void) {
 
 /** ****************************************************************************
  *
+ * \brief	Read the joystick's position and buttons, and latch a click.
+ *
+ * \details	Port of ReadJoystick (1000:2df4). The original timed the
+ * 			one-shots of port 201h (dos_joystickRead). globals_joystickX/Y
+ * 			get the counts less the center, globals_joystickButtons the
+ * 			buttons (bit 0: button 1, bit 1: button 2). A button pressed
+ * 			while no other click source is held latches a left click at
+ * 			the cursor, globals_leftClick getting the buttons. Without an
+ * 			answer from the port nothing changes.
+ *
+ ******************************************************************************/
+void input_readJoystick(void) {
+	int16_t countX;
+	int16_t countY;
+	uint8_t buttons;
+
+	if (!dos_joystickRead(&countX, &countY, &buttons)) {
+		return;
+	}
+
+	globals_joystickX = (int16_t)(countX - globals_joystickCenterX);
+	globals_joystickY = (int16_t)(countY - globals_joystickCenterY);
+	globals_joystickButtons = buttons;
+
+	if (buttons == 0) {
+		globals_buttonsHeld &= (uint8_t)~INPUT_HELD_JOYSTICK;
+		return;
+	}
+
+	if (globals_buttonsHeld == 0) {
+		globals_leftClickX = globals_cursorX;
+		globals_leftClickY = globals_cursorY;
+		globals_leftClick = buttons;
+	}
+
+	globals_buttonsHeld |= INPUT_HELD_JOYSTICK;
+}
+
+/** ****************************************************************************
+ *
  * \brief	Wait a number of ticks, or until the player continues.
  *
  * \param	ticks			Ticks to wait (72.8 per second).
  *
  * \details	Port of WaitTicksOrInput (1f38:0b51). Returns early on a
- * 			latched click (click key or mouse), the left mouse button,
- * 			Enter or Esc. M turns the music on or off and keeps waiting;
- * 			other keys are ignored. Not ported: the joystick button, and
+ * 			latched click (click key, mouse or joystick), the left mouse
+ * 			button, a joystick button, Enter or Esc. M turns the music on
+ * 			or off and keeps waiting; other keys are ignored. Not ported:
  * 			starting or stopping the music itself (FUN_1000_0dd8 and
  * 			FUN_1000_0d99, Phase 5).
  *
@@ -417,6 +507,14 @@ void input_waitTicks(
 			input_mouseReadButtons();
 
 			if (globals_mouseLeft != 0) {
+				return;
+			}
+		}
+
+		if (globals_joystickPresent != 0) {
+			input_readJoystick();
+
+			if (globals_joystickButtons != 0) {
 				return;
 			}
 		}

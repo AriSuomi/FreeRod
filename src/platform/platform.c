@@ -232,6 +232,18 @@ static int plat__translateKey(
 	SDL_Keycode keycode
 );
 
+static void plat__openJoystick(
+	SDL_JoystickID id
+);
+
+static void plat__openFirstJoystick(void);
+
+static void plat__closeJoystick(void);
+
+static bool plat__isOpenJoystick(
+	SDL_JoystickID id
+);
+
 /*******************************************************************************
 ;
 ;	D A T A
@@ -277,6 +289,11 @@ static int		plat__pointerLeft;	 /**< Pointer column, 0..319. */
 static int		plat__pointerTop;	 /**< Pointer row, 0..199. */
 static unsigned plat__buttonsHeld;	 /**< PLAT_BUTTON_* bits held now. */
 static unsigned plat__buttonsPushed; /**< Pressed since the last read. */
+
+static SDL_Joystick * plat__joystick;		/**< Joystick in use, or NULL. */
+static SDL_Gamepad *  plat__gamepad;		/**< Its gamepad view, or NULL. */
+static unsigned		  plat__joystickPushed; /**< Pressed since the last read. */
+static SDL_JoystickID plat__testJoystick;	/**< Virtual test stick, or 0. */
 
 static plat_ImageHandle plat__cursorImage;	/**< Cursor image, 0 = hidden. */
 static int				plat__cursorSource; /**< First image row shown. */
@@ -359,6 +376,13 @@ bool plat_init(
 		return false;
 	}
 
+	if (SDL_InitSubSystem(SDL_INIT_GAMEPAD)) {
+		plat__openFirstJoystick();
+	} else {
+		/* The game runs without a joystick. */
+		SDL_LogWarn(LOG_APP, "no joystick support: %s", SDL_GetError());
+	}
+
 	if (!plat__createWindow(pTitle, windowScale)) {
 		return false;
 	}
@@ -413,6 +437,13 @@ void plat_shutdown(void) {
 	plat__pixelTexture = NULL;
 	plat__renderer = NULL;
 	plat__window = NULL;
+
+	plat__closeJoystick();
+
+	if (plat__testJoystick != 0) {
+		SDL_DetachVirtualJoystick(plat__testJoystick);
+		plat__testJoystick = 0;
+	}
 
 	SDL_Quit();
 }
@@ -1527,6 +1558,49 @@ bool plat_poll(void) {
 				break;
 			}
 
+			case SDL_EVENT_JOYSTICK_ADDED:
+				if (plat__joystick == NULL) {
+					plat__openJoystick(event.jdevice.which);
+				}
+
+				break;
+
+			case SDL_EVENT_JOYSTICK_REMOVED:
+				if (plat__isOpenJoystick(event.jdevice.which)) {
+					plat__closeJoystick();
+					plat__openFirstJoystick();
+				}
+
+				break;
+
+			case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
+				if (plat__gamepad == NULL ||
+					!plat__isOpenJoystick(event.gbutton.which)) {
+					break;
+				}
+
+				if (event.gbutton.button == SDL_GAMEPAD_BUTTON_SOUTH) {
+					plat__joystickPushed |= PLAT_JOY_BUTTON_1;
+				} else if (event.gbutton.button == SDL_GAMEPAD_BUTTON_EAST) {
+					plat__joystickPushed |= PLAT_JOY_BUTTON_2;
+				}
+
+				break;
+
+			case SDL_EVENT_JOYSTICK_BUTTON_DOWN:
+				if (plat__gamepad != NULL ||
+					!plat__isOpenJoystick(event.jbutton.which)) {
+					break;
+				}
+
+				if (event.jbutton.button == 0) {
+					plat__joystickPushed |= PLAT_JOY_BUTTON_1;
+				} else if (event.jbutton.button == 1) {
+					plat__joystickPushed |= PLAT_JOY_BUTTON_2;
+				}
+
+				break;
+
 			default:
 				break;
 		}
@@ -1610,6 +1684,180 @@ void plat_getPointer(
 	*pTop = plat__pointerTop;
 	*pButtons = plat__buttonsHeld | plat__buttonsPushed;
 	plat__buttonsPushed = 0;
+}
+
+/** ****************************************************************************
+ *
+ * \brief	Get the joystick position and buttons.
+ *
+ * \param	pHorizontal		Output: -32768 (left) .. 32767 (right).
+ * \param	pVertical		Output: -32768 (up) .. 32767 (down).
+ * \param	pButtons		Output: PLAT_JOY_BUTTON_* bits of the buttons
+ * 							held, plus those pressed since the last call.
+ *
+ * \retval	true	A joystick is connected; the outputs are set.
+ * \retval	false	None is connected; the outputs are not changed.
+ *
+ * \details	A gamepad reports its left stick, overridden by the D-pad,
+ * 			and the buttons A and B. Another joystick reports its first
+ * 			two axes, overridden by its first hat, and its first two
+ * 			buttons. The first device found is used; when it goes, the
+ * 			next one.
+ *
+ ******************************************************************************/
+bool plat_getJoystick(
+	int16_t *  pHorizontal,
+	int16_t *  pVertical,
+	unsigned * pButtons
+) {
+	if (plat__joystick == NULL) {
+		plat__joystickPushed = 0;
+		return false;
+	}
+
+	int16_t	 horizontal = 0;
+	int16_t	 vertical = 0;
+	unsigned buttons = 0;
+	bool	 left;
+	bool	 right;
+	bool	 up;
+	bool	 down;
+
+	if (plat__gamepad != NULL) {
+		SDL_Gamepad * pPad = plat__gamepad;
+
+		horizontal = SDL_GetGamepadAxis(pPad, SDL_GAMEPAD_AXIS_LEFTX);
+		vertical = SDL_GetGamepadAxis(pPad, SDL_GAMEPAD_AXIS_LEFTY);
+		left = SDL_GetGamepadButton(pPad, SDL_GAMEPAD_BUTTON_DPAD_LEFT);
+		right = SDL_GetGamepadButton(pPad, SDL_GAMEPAD_BUTTON_DPAD_RIGHT);
+		up = SDL_GetGamepadButton(pPad, SDL_GAMEPAD_BUTTON_DPAD_UP);
+		down = SDL_GetGamepadButton(pPad, SDL_GAMEPAD_BUTTON_DPAD_DOWN);
+
+		if (SDL_GetGamepadButton(pPad, SDL_GAMEPAD_BUTTON_SOUTH)) {
+			buttons |= PLAT_JOY_BUTTON_1;
+		}
+
+		if (SDL_GetGamepadButton(pPad, SDL_GAMEPAD_BUTTON_EAST)) {
+			buttons |= PLAT_JOY_BUTTON_2;
+		}
+	} else {
+		SDL_Joystick * pStick = plat__joystick;
+		uint8_t		   hat = SDL_HAT_CENTERED;
+
+		if (SDL_GetNumJoystickAxes(pStick) >= 2) {
+			horizontal = SDL_GetJoystickAxis(pStick, 0);
+			vertical = SDL_GetJoystickAxis(pStick, 1);
+		}
+
+		if (SDL_GetNumJoystickHats(pStick) >= 1) {
+			hat = SDL_GetJoystickHat(pStick, 0);
+		}
+
+		left = (hat & SDL_HAT_LEFT) != 0;
+		right = (hat & SDL_HAT_RIGHT) != 0;
+		up = (hat & SDL_HAT_UP) != 0;
+		down = (hat & SDL_HAT_DOWN) != 0;
+
+		if (SDL_GetJoystickButton(pStick, 0)) {
+			buttons |= PLAT_JOY_BUTTON_1;
+		}
+
+		if (SDL_GetJoystickButton(pStick, 1)) {
+			buttons |= PLAT_JOY_BUTTON_2;
+		}
+	}
+
+	if (left) {
+		horizontal = INT16_MIN;
+	} else if (right) {
+		horizontal = INT16_MAX;
+	}
+
+	if (up) {
+		vertical = INT16_MIN;
+	} else if (down) {
+		vertical = INT16_MAX;
+	}
+
+	*pHorizontal = horizontal;
+	*pVertical = vertical;
+	*pButtons = buttons | plat__joystickPushed;
+	plat__joystickPushed = 0;
+
+	return true;
+}
+
+/** ****************************************************************************
+ *
+ * \brief	Test aid: connect a virtual joystick and use it in place of
+ * 			any other.
+ *
+ * \retval	true	The test joystick is in use, centered.
+ * \retval	false	SDL could not make it; the reason is logged.
+ *
+ * \details	Call after plat_init. It has two axes and two buttons, set
+ * 			with plat_setTestJoystick.
+ *
+ ******************************************************************************/
+bool plat_attachTestJoystick(void) {
+	SDL_VirtualJoystickDesc desc;
+
+	SDL_INIT_INTERFACE(&desc);
+	desc.type = SDL_JOYSTICK_TYPE_UNKNOWN;
+	desc.naxes = 2;
+	desc.nbuttons = 2;
+	desc.name = "FreeRod test joystick";
+
+	SDL_JoystickID id = SDL_AttachVirtualJoystick(&desc);
+
+	if (id == 0) {
+		SDL_LogError(LOG_APP, "test joystick: %s", SDL_GetError());
+		return false;
+	}
+
+	plat__testJoystick = id;
+	plat__closeJoystick();
+	plat__openJoystick(id);
+
+	return plat__joystick != NULL;
+}
+
+/** ****************************************************************************
+ *
+ * \brief	Test aid: move the test joystick and set its buttons.
+ *
+ * \param	horizontal		-32768 (left) .. 32767 (right).
+ * \param	vertical		-32768 (up) .. 32767 (down).
+ * \param	buttons			PLAT_JOY_BUTTON_* bits held.
+ *
+ * \details	Does nothing without plat_attachTestJoystick. The change is
+ * 			seen after the next plat_poll.
+ *
+ ******************************************************************************/
+void plat_setTestJoystick(
+	int16_t	 horizontal,
+	int16_t	 vertical,
+	unsigned buttons
+) {
+	if (plat__testJoystick == 0 ||
+		!plat__isOpenJoystick(plat__testJoystick)) {
+		return;
+	}
+
+	SDL_Joystick * pStick = plat__joystick;
+
+	SDL_SetJoystickVirtualAxis(pStick, 0, horizontal);
+	SDL_SetJoystickVirtualAxis(pStick, 1, vertical);
+	SDL_SetJoystickVirtualButton(
+		pStick,
+		0,
+		(buttons & PLAT_JOY_BUTTON_1) != 0
+	);
+	SDL_SetJoystickVirtualButton(
+		pStick,
+		1,
+		(buttons & PLAT_JOY_BUTTON_2) != 0
+	);
 }
 
 /** ****************************************************************************
@@ -2636,4 +2884,93 @@ static void plat__freeImage(
 	plat__imageFreeTextures(pImage);
 	free(pImage->pPixels);
 	memset(pImage, 0, sizeof *pImage);
+}
+
+/** ****************************************************************************
+ *
+ * \brief	Open a joystick, as a gamepad when SDL knows its layout.
+ *
+ * \param	id				Instance of the joystick.
+ *
+ * \details	On failure no joystick stays open; the reason is logged.
+ *
+ ******************************************************************************/
+static void plat__openJoystick(
+	SDL_JoystickID id
+) {
+	if (SDL_IsGamepad(id)) {
+		plat__gamepad = SDL_OpenGamepad(id);
+		plat__joystick =
+			plat__gamepad ? SDL_GetGamepadJoystick(plat__gamepad) : NULL;
+	} else {
+		plat__joystick = SDL_OpenJoystick(id);
+	}
+
+	if (plat__joystick == NULL) {
+		SDL_LogWarn(LOG_APP, "joystick %u: %s", (unsigned)id, SDL_GetError());
+		plat__gamepad = NULL;
+		return;
+	}
+
+	plat__joystickPushed = 0;
+	SDL_LogInfo(LOG_APP, "joystick: %s", SDL_GetJoystickName(plat__joystick));
+}
+
+/** ****************************************************************************
+ *
+ * \brief	Open the first joystick connected, if any.
+ *
+ * \details	The test joystick, once attached, is the only one used.
+ *
+ ******************************************************************************/
+static void plat__openFirstJoystick(void) {
+	if (plat__testJoystick != 0) {
+		return;
+	}
+
+	int				 count = 0;
+	SDL_JoystickID * pIds = SDL_GetJoysticks(&count);
+
+	for (int index = 0; pIds && index < count; index++) {
+		plat__openJoystick(pIds[index]);
+
+		if (plat__joystick != NULL) {
+			break;
+		}
+	}
+
+	SDL_free(pIds);
+}
+
+/** ****************************************************************************
+ *
+ * \brief	Close the joystick in use, if any.
+ *
+ ******************************************************************************/
+static void plat__closeJoystick(void) {
+	if (plat__gamepad != NULL) {
+		SDL_CloseGamepad(plat__gamepad);
+	} else if (plat__joystick != NULL) {
+		SDL_CloseJoystick(plat__joystick);
+	}
+
+	plat__gamepad = NULL;
+	plat__joystick = NULL;
+	plat__joystickPushed = 0;
+}
+
+/** ****************************************************************************
+ *
+ * \brief	Tell whether a joystick instance is the one in use.
+ *
+ * \param	id				Instance of a joystick.
+ *
+ * \retval	true	It is the joystick in use.
+ * \retval	false	It is another one, or none is in use.
+ *
+ ******************************************************************************/
+static bool plat__isOpenJoystick(
+	SDL_JoystickID id
+) {
+	return plat__joystick != NULL && SDL_GetJoystickID(plat__joystick) == id;
 }

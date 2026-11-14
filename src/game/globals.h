@@ -118,6 +118,14 @@ extern int16_t globals_mouseStepX;
 extern int16_t globals_mouseStepY;
 extern uint8_t globals_joystickPresent;
 extern uint8_t globals_joystickButtons;
+extern int16_t globals_joystickX;
+extern int16_t globals_joystickY;
+extern int16_t globals_joystickCenterX;
+extern int16_t globals_joystickCenterY;
+extern int16_t globals_joystickLeft;
+extern int16_t globals_joystickRight;
+extern int16_t globals_joystickUp;
+extern int16_t globals_joystickDown;
 
 /* Music */
 

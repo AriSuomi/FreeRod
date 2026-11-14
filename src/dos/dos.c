@@ -451,6 +451,57 @@ void dos_mouseSetPosition(
 
 /** ****************************************************************************
  *
+ * \brief	Read the game port (201h) the way the game's timing loop does.
+ *
+ * \param	pCountX			Output: loop count until the X one-shot of
+ * 							joystick A ended, 0 (left) .. 0x1ff (right).
+ * \param	pCountY			Output: the same for Y, 0 (up) .. 0x1ff (down).
+ * \param	pButtons		Output: bit 0 button 1, bit 1 button 2 pressed
+ * 							(port bits 4 and 5, inverted).
+ *
+ * \retval	true	A joystick answered.
+ * \retval	false	None did (the loop timed out); the outputs are not
+ * 					changed.
+ *
+ * \details	A centered axis counts 0x100, as a real stick
+ * 			counts about half of its full travel there. A button pressed
+ * 			and released since the last read is reported once.
+ *
+ ******************************************************************************/
+bool dos_joystickRead(
+	int16_t * pCountX,
+	int16_t * pCountY,
+	uint8_t * pButtons
+) {
+	int16_t	 horizontal;
+	int16_t	 vertical;
+	unsigned buttons;
+
+	if (!plat_getJoystick(&horizontal, &vertical, &buttons)) {
+		return false;
+	}
+
+	/* -32768..32767 to 0..0x1ff */
+	*pCountX = (int16_t)((horizontal + 32768) >> 7);
+	*pCountY = (int16_t)((vertical + 32768) >> 7);
+
+	uint8_t pressed = 0;
+
+	if (buttons & PLAT_JOY_BUTTON_1) {
+		pressed |= 1;
+	}
+
+	if (buttons & PLAT_JOY_BUTTON_2) {
+		pressed |= 2;
+	}
+
+	*pButtons = pressed;
+
+	return true;
+}
+
+/** ****************************************************************************
+ *
  * \brief	Set a function that runs on every dos_service call.
  *
  * \param	pHook			The function, or NULL for none.

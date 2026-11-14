@@ -23,6 +23,7 @@
 ;
 ;-----------------------------------------------------------------------------*/
 
+#include <stdbool.h>
 #include <stdint.h>
 
 /*******************************************************************************
@@ -107,6 +108,12 @@ void dos_mouseMotion(
 void dos_mouseSetPosition(
 	int16_t left,
 	int16_t top
+);
+
+bool dos_joystickRead(
+	int16_t * pCountX,
+	int16_t * pCountY,
+	uint8_t * pButtons
 );
 
 #endif // DOS_DOS_H_INCLUDED

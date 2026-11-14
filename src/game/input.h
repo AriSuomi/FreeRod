@@ -75,6 +75,8 @@ void input_mouseReadMotion(
 
 void input_mousePoll(void);
 
+void input_readJoystick(void);
+
 void input_waitTicks(
 	int16_t ticks
 );

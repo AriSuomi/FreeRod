@@ -57,6 +57,9 @@
 #define PLAT_BUTTON_LEFT  1 /**< Left mouse button, or touching. */
 #define PLAT_BUTTON_RIGHT 2 /**< Right mouse button. */
 
+#define PLAT_JOY_BUTTON_1 1 /**< Joystick button 1 (gamepad: A). */
+#define PLAT_JOY_BUTTON_2 2 /**< Joystick button 2 (gamepad: B). */
+
 /*******************************************************************************
 ;
 ;	T Y P E S
@@ -299,6 +302,20 @@ void plat_getPointer(
 	int *	   pLeft,
 	int *	   pTop,
 	unsigned * pButtons
+);
+
+bool plat_getJoystick(
+	int16_t *  pHorizontal,
+	int16_t *  pVertical,
+	unsigned * pButtons
+);
+
+bool plat_attachTestJoystick(void);
+
+void plat_setTestJoystick(
+	int16_t	 horizontal,
+	int16_t	 vertical,
+	unsigned buttons
 );
 
 void plat_timerSetRate(

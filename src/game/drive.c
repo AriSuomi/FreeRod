@@ -380,6 +380,10 @@ static void drive__readControls(
 	drive__Controls * pControls
 );
 
+static void drive__readJoystick(
+	drive__Controls * pControls
+);
+
 static void drive__autoDriver(
 	drive__Controls * pControls
 );
@@ -1276,8 +1280,8 @@ static int16_t drive__step(void) {
  * \details	Half of FUN_1000_8ea8. Step 0 (DS:0x79a6) starts the drive
  * 			(drive__begin) with "Cruising in town...", in the first gear
  * 			(record +0x18), and makes +0x24 2 if it was 1.
- * 			Afterwards Esc, a click key, the mouse button or (not
- * 			ported) the joystick button end the cruise, as does bit 0
+ * 			Afterwards Esc, a click key, the mouse button or a
+ * 			joystick button end the cruise, as does bit 0
  * 			of the side flags (road_table) at the tile after the car's
  * 			(DS:0x7d30). Otherwise the revs rise by the
  * 			gear's step (DS:0x51d8) up to 4700, the speed is the revs
@@ -1317,6 +1321,11 @@ static int16_t drive__cruise(void) {
 		if (globals_mousePresent != 0) {
 			input_mouseReadButtons();
 			globals_clickKeyFlag2 |= globals_mouseLeft;
+		}
+
+		if (globals_joystickPresent != 0) {
+			input_readJoystick();
+			globals_clickKeyFlag2 |= globals_joystickButtons;
 		}
 	}
 
@@ -1775,12 +1784,14 @@ static void drive__driveCar(void) {
  * \details	Part of TimerIsr2 (1000:238c). Unless the keyboard handler is
  * 			at work (DS:0x4740): a held column key steers and makes
  * 			globals_cursorX -1 or 1, the amount drive__steer takes; a
- * 			held row key is the gas (up) or the brake (down). The mouse
- * 			(no demo): moved down it brakes, moved sideways it steers
- * 			and adds 1 to that amount, its right button is the gas. The
- * 			gear changes when a click key or button is newly held
- * 			(DS:0x4732 against DS:0x6e9) or DS:0x47cd is set. Not
- * 			ported: the joystick.
+ * 			held row key is the gas (up) or the brake (down). The
+ * 			joystick (no demo) past its thresholds: sideways it steers
+ * 			and adds 1 to that amount, up is the gas, down the brake,
+ * 			both moving globals_cursorY too. The mouse (no demo): moved
+ * 			down it brakes, moved sideways it steers and adds 1 to that
+ * 			amount, its right button is the gas. The gear changes when a
+ * 			click key or button is newly held (DS:0x4732 against
+ * 			DS:0x6e9) or DS:0x47cd is set.
  *
  ******************************************************************************/
 static void drive__readControls(
@@ -1800,6 +1811,10 @@ static void drive__readControls(
 			pControls->gas = true;
 		} else if (globals_keyDirectionY > 0) {
 			pControls->brake = true;
+		}
+
+		if (globals_demoMode == 0 && globals_joystickPresent != 0) {
+			drive__readJoystick(pControls);
 		}
 
 		if (globals_demoMode == 0 && globals_mousePresent != 0) {
@@ -1830,6 +1845,44 @@ static void drive__readControls(
 	if (globals_clickKeyFlag != 0) {
 		pControls->shift = true;
 		globals_clickKeyFlag = 0;
+	}
+}
+
+/** ****************************************************************************
+ *
+ * \brief	Add what the joystick does with the car.
+ *
+ * \param	pControls		The controls; gas, brake and steering are set.
+ *
+ * \details	Part of TimerIsr2 (1000:238c). Left or right of its
+ * 			thresholds the stick steers and moves globals_cursorX by 1;
+ * 			up it is the gas, down the brake, moving globals_cursorY by
+ * 			1. Any of them marks the cursor as moved.
+ *
+ ******************************************************************************/
+static void drive__readJoystick(
+	drive__Controls * pControls
+) {
+	input_readJoystick();
+
+	if (globals_joystickX < globals_joystickLeft) {
+		pControls->steer = true;
+		globals_cursorMoved = 1;
+		globals_cursorX--;
+	} else if (globals_joystickX > globals_joystickRight) {
+		pControls->steer = true;
+		globals_cursorMoved = 1;
+		globals_cursorX++;
+	}
+
+	if (globals_joystickY < globals_joystickUp) {
+		pControls->gas = true;
+		globals_cursorMoved = 1;
+		globals_cursorY--;
+	} else if (globals_joystickY > globals_joystickDown) {
+		pControls->brake = true;
+		globals_cursorMoved = 1;
+		globals_cursorY++;
 	}
 }
 

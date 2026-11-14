@@ -40,6 +40,11 @@
  * 			--keys-at TICKS TEXT	type TEXT from that time on, one key per
  * 								pass; "<" is Backspace, "!" is Enter, "~"
  * 								waits 40 ticks
+ * 			--joystick-at TICKS X Y BUTTONS	use a test joystick and
+ * 								move it from that time on: X, Y -100
+ * 								(left, up) .. 100 percent, BUTTONS bit 0
+ * 								button 1, bit 1 button 2 (up to 16, in
+ * 								order)
  * 			--race-result FLAGS SPEED	ends every race at "Go !" with
  * 								this outcome (bits 0..7 for
  * 								DS:0x799c, 0x100 won) and the speed
@@ -80,6 +85,7 @@
 #define MAIN_EXIT_CODE	5  /**< ExitGame ends the program with exit(5). */
 #define MAIN_KEY_PAUSE	40 /**< Ticks "~" waits in --keys-at. */
 #define MAIN_MAX_CLICKS 16 /**< Test clicks at most. */
+#define MAIN_MAX_MOVES	16 /**< Test joystick moves at most. */
 
 /*******************************************************************************
 ;
@@ -106,6 +112,8 @@ typedef struct main__options_tag {
 	int			 clickNext;	  /**< Next test click to make. */
 	long		 keysAt;	  /**< Tick of the test keys, or -1. */
 	const char * pKeys;		  /**< Test keys still to type, or NULL. */
+	int			 moveCount;	  /**< Test joystick moves given. */
+	int			 moveNext;	  /**< Next test joystick move to make. */
 } main__Options;
 
 /**
@@ -116,6 +124,16 @@ typedef struct main__click_tag {
 	int	 column; /**< Column of the click. */
 	int	 row;	 /**< Row of the click. */
 } main__Click;
+
+/**
+ * A move of the test joystick (--joystick-at).
+ */
+typedef struct main__joystick_move_tag {
+	long	 tick;		 /**< Tick of the game clock. */
+	int16_t	 horizontal; /**< -32767 (left) .. 32767 (right). */
+	int16_t	 vertical;	 /**< -32767 (up) .. 32767 (down). */
+	unsigned buttons;	 /**< PLAT_JOY_BUTTON_* bits held. */
+} main__JoystickMove;
 
 /*******************************************************************************
 ;
@@ -150,6 +168,10 @@ static bool main__parseOptions(
 	main__Options * pOptions
 );
 
+static int16_t main__percentToAxis(
+	int percent
+);
+
 static int main__nextResource(
 	int current,
 	int key
@@ -175,6 +197,11 @@ static main__Options main__options;
  * The test clicks of the --click-at options, in order.
  */
 static main__Click main__clicks[MAIN_MAX_CLICKS];
+
+/**
+ * The test joystick moves of the --joystick-at options, in order.
+ */
+static main__JoystickMove main__moves[MAIN_MAX_MOVES];
 
 /*******************************************************************************
 ;
@@ -221,6 +248,8 @@ int main(
 		.clickNext = 0,
 		.keysAt = -1,
 		.pKeys = NULL,
+		.moveCount = 0,
+		.moveNext = 0,
 	};
 
 	globals_mouseAllowed = 1;
@@ -239,6 +268,11 @@ int main(
 	}
 
 	plat_setModDir(options.pModDir);
+
+	if (options.moveCount > 0 && !plat_attachTestJoystick()) {
+		plat_shutdown();
+		return 1;
+	}
 	dos_setQuitHandler(main__exitGame);
 
 	screen_initSurfaces();
@@ -265,7 +299,10 @@ int main(
 	cursor_init();
 	main__options = options;
 
-	if (options.shotAt >= 0 || options.clickCount > 0 || options.pKeys) {
+	bool testing = options.shotAt >= 0 || options.clickCount > 0 ||
+		options.pKeys || options.moveCount > 0;
+
+	if (testing) {
 		dos_setServiceHook(main__testHook);
 	}
 
@@ -565,6 +602,18 @@ static bool main__parseOptions(
 			main__clicks[click].tick = atol(pValue);
 			main__clicks[click].column = atoi(pArgv[++index]);
 			main__clicks[click].row = atoi(pArgv[++index]);
+		} else if (strcmp(pOption, "--joystick-at") == 0) {
+			if (index + 3 >= argc || pOptions->moveCount == MAIN_MAX_MOVES) {
+				plat_log("--joystick-at needs TICKS X Y BUTTONS (at most 16)");
+				return false;
+			}
+
+			main__JoystickMove * pMove = &main__moves[pOptions->moveCount++];
+
+			pMove->tick = atol(pValue);
+			pMove->horizontal = main__percentToAxis(atoi(pArgv[++index]));
+			pMove->vertical = main__percentToAxis(atoi(pArgv[++index]));
+			pMove->buttons = (unsigned)atoi(pArgv[++index]);
 		} else {
 			plat_log("unknown option: %s", pOption);
 			return false;
@@ -655,7 +704,8 @@ static void main__runViewer(
  * \brief	Test aid: take the screenshot or make the click that the
  * 			options ask for when the game clock reaches their tick.
  *
- * \details	Runs from dos_service. The click is latched like a click of
+ * \details	Runs from dos_service. A joystick move is seen from the next
+ * 			event poll on. The click is latched like a click of
  * 			the click key at the given position. After the screenshot the
  * 			program ends with exit code 0 (1 when saving failed).
  *
@@ -673,6 +723,19 @@ static void main__testHook(void) {
 		globals_leftClickX = globals_cursorX;
 		globals_leftClickY = globals_cursorY;
 		globals_leftClick = 1;
+	}
+
+	int	 move = main__options.moveNext;
+	bool moveDue = move < main__options.moveCount &&
+		globals_ticks >= (uint32_t)main__moves[move].tick;
+
+	if (moveDue) {
+		main__options.moveNext++;
+		plat_setTestJoystick(
+			main__moves[move].horizontal,
+			main__moves[move].vertical,
+			main__moves[move].buttons
+		);
 	}
 
 	bool keyDue = main__options.pKeys && main__options.pKeys[0] != '\0' &&
@@ -712,4 +775,25 @@ static void main__testHook(void) {
 		exe_unload();
 		exit(saved ? 0 : 1);
 	}
+}
+
+/** ****************************************************************************
+ *
+ * \brief	Turn a percentage of a joystick axis into its position.
+ *
+ * \param	percent			-100 (left, up) .. 100 (right, down); clamped.
+ *
+ * \return	The position, -32767 .. 32767.
+ *
+ ******************************************************************************/
+static int16_t main__percentToAxis(
+	int percent
+) {
+	if (percent < -100) {
+		percent = -100;
+	} else if (percent > 100) {
+		percent = 100;
+	}
+
+	return (int16_t)(percent * 32767 / 100);
 }
