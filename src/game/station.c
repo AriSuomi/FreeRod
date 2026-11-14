@@ -296,8 +296,8 @@ void station_visit(void) {
 	pVisit->tireTable = (uint16_t)(STATE_TIRE_SPRITES + tires * 8);
 
 	/*
-	 * DrawCar hides the cursor while the car moves; the port's cars_draw
-	 * leaves that to its callers.
+	 * DrawCar hides the cursor while the car moves and shows it again at
+	 * its end; the port's cars_draw leaves that to its callers.
 	 */
 	cursor_set(CURSOR_HIDE_NOW);
 	cars_draw(
@@ -310,6 +310,7 @@ void station_visit(void) {
 		1,
 		pVisit->tireTable
 	);
+	cursor_set(CURSOR_SHOW_NOW);
 
 	pVisit->bucket = screen_saveRect(
 		STATION_BUCKET_X,
