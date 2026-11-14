@@ -47,6 +47,16 @@
 #define FPU_SINGLE_SHIFT	40					  /**< Dropped dword bits. */
 #define FPU_LOW_HALF		0xffffffffull		  /**< Low 32 bits. */
 
+/*
+ * Sine and cosine. A quarter turn (pi / 2) is FPU_QUARTER_TOP +
+ * FPU_QUARTER_REST: the first has 32 bits, so its multiples are exact.
+ */
+#define FPU_QUARTER			0xc90fdaa22168c235ull /**< pi / 2, exponent 0. */
+#define FPU_QUARTER_TOP		0xc90fdaa200000000ull /**< Its first 32 bits. */
+#define FPU_QUARTER_REST	0x85a308d313198a2eull /**< The 64 bits after. */
+#define FPU_QUARTER_REST_AT (-34)				  /**< Their exponent. */
+#define FPU_SERIES_TERMS	10					  /**< Terms after the first. */
+
 /*******************************************************************************
 ;
 ;	T Y P E S
@@ -73,6 +83,16 @@ static void fpu__multiply(
 	uint64_t   right,
 	uint64_t * pHigh,
 	uint64_t * pLow
+);
+
+static fpu_Real fpu__series(
+	fpu_Real square,
+	int32_t	 first
+);
+
+static fpu_Real fpu__sine(
+	fpu_Real value,
+	int32_t	 quarters
 );
 
 /*******************************************************************************
@@ -567,6 +587,43 @@ int32_t fpu_toLong(
 
 /** ****************************************************************************
  *
+ * \brief	The sine of an angle.
+ *
+ * \param	value			The angle in radians, below 2^30.
+ *
+ * \return	The sine.
+ *
+ * \details	Stands in for sin (1e16:3310) of the C runtime, which works
+ * 			the sine out on the emulator with its own code; the last bits
+ * 			of the 64-bit mantissa can differ from the original's (see
+ * 			fpu__sine).
+ *
+ ******************************************************************************/
+fpu_Real fpu_sin(
+	fpu_Real value
+) {
+	return fpu__sine(value, 0);
+}
+
+/** ****************************************************************************
+ *
+ * \brief	The cosine of an angle.
+ *
+ * \param	value			The angle in radians, below 2^30.
+ *
+ * \return	The cosine.
+ *
+ * \details	Stands in for cos (1e16:3316) of the C runtime, like fpu_sin.
+ *
+ ******************************************************************************/
+fpu_Real fpu_cos(
+	fpu_Real value
+) {
+	return fpu__sine(value, 1);
+}
+
+/** ****************************************************************************
+ *
  * \brief	The number 0.
  *
  * \return	0.
@@ -639,4 +696,83 @@ static void fpu__multiply(
 
 	*pLow = (middle << 32) | (lowLow & FPU_LOW_HALF);
 	*pHigh = highHigh + (lowHigh >> 32) + (highLow >> 32) + (middle >> 32);
+}
+
+/** ****************************************************************************
+ *
+ * \brief	Sum the power series of the sine or the cosine.
+ *
+ * \param	square			The square of the angle, at most (pi / 4)^2.
+ * \param	first			1: cosine; 2: sine divided by the angle.
+ *
+ * \return	1 - square / (first * (first + 1)) * (1 - square /
+ * 			((first + 2) * (first + 3)) * (1 - ...)).
+ *
+ * \details	Not part of the original. The terms left out are below the
+ * 			last bit of the mantissa.
+ *
+ ******************************************************************************/
+static fpu_Real fpu__series(
+	fpu_Real square,
+	int32_t	 first
+) {
+	fpu_Real one = fpu_fromInt(1);
+	fpu_Real sum = one;
+
+	for (int32_t factor = first + 2 * FPU_SERIES_TERMS; factor >= first;
+		 factor -= 2) {
+		sum = fpu_sub(
+			one,
+			fpu_div(fpu_mul(square, sum), fpu_fromInt(factor * (factor + 1)))
+		);
+	}
+
+	return sum;
+}
+
+/** ****************************************************************************
+ *
+ * \brief	The sine of an angle a number of quarter turns further.
+ *
+ * \param	value			The angle in radians, below 2^30.
+ * \param	quarters		Quarter turns added: 0 sine, 1 cosine.
+ *
+ * \return	sin(value + quarters * pi / 2).
+ *
+ * \details	Not part of the original. The nearest multiple of pi / 2 is
+ * 			taken off the angle (with pi / 2 to 96 bits, so the rest is
+ * 			right to about 2^-64 for the few turns the game uses) and
+ * 			the rest, at most pi / 4 either way, goes through the power
+ * 			series of the sine or the cosine by the quarter.
+ *
+ ******************************************************************************/
+static fpu_Real fpu__sine(
+	fpu_Real value,
+	int32_t	 quarters
+) {
+	fpu_Real quarter = { FPU_QUARTER, 0, false };
+	fpu_Real top = { FPU_QUARTER_TOP, 0, false };
+	fpu_Real rest = { FPU_QUARTER_REST, FPU_QUARTER_REST_AT, false };
+	fpu_Real half = { FPU_TOP_BIT, -1, value.negative };
+	int32_t	 count = fpu_toLong(fpu_add(fpu_div(value, quarter), half));
+	fpu_Real turns = fpu_fromInt(count);
+
+	value = fpu_sub(value, fpu_mul(turns, top));
+	value = fpu_sub(value, fpu_mul(turns, rest));
+
+	fpu_Real square = fpu_mul(value, value);
+	uint32_t place = (uint32_t)(count + quarters) & 3;
+	fpu_Real result;
+
+	if ((place & 1) != 0) {
+		result = fpu__series(square, 1);
+	} else {
+		result = fpu_mul(value, fpu__series(square, 2));
+	}
+
+	if ((place & 2) != 0 && result.mantissa != 0) {
+		result.negative = !result.negative;
+	}
+
+	return result;
 }

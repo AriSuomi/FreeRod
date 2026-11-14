@@ -37,6 +37,8 @@
 #include <stdbool.h>
 
 #include "dos/dos.h"
+#include "dos/fpu.h"
+#include "game/calendar.h"
 #include "game/driving.h"
 #include "game/exe.h"
 #include "game/globals.h"
@@ -127,6 +129,26 @@
 #define DRIVE_NEEDLE_BRIGHT	 0xb	/**< That color on EGA and VGA. */
 #define DRIVE_BYTE_MASK		 0xfff8 /**< Column of a byte of video memory. */
 #define DRIVE_UNDER_EXTRA	 0x10	/**< Columns added to a saved area. */
+
+/*
+ * The clock an automatic shows in place of the tachometer.
+ */
+#define DRIVE_CLOCK_PI		 0x68ea /**< DS: real pi. */
+#define DRIVE_CLOCK_HALF	 0x68f2 /**< DS: real 180, degrees of pi. */
+#define DRIVE_CLOCK_HUB		 0x68fa /**< DS: real 5, where a hand starts. */
+#define DRIVE_CLOCK_HOUR	 0x6902 /**< DS: real 13, the hour hand's tip. */
+#define DRIVE_CLOCK_SIDE	 0x690a /**< DS: real 9, a hand's corners. */
+#define DRIVE_CLOCK_MINUTE	 0x6912 /**< DS: real 18, the minute hand's tip. */
+#define DRIVE_CLOCK_HOURS	 12		/**< Hours of the dial. */
+#define DRIVE_CLOCK_SHIFT	 20		/**< Added to half the hour index. */
+#define DRIVE_CLOCK_PER_HOUR 30		/**< Degrees of an hour. */
+#define DRIVE_CLOCK_PER_MIN	 6		/**< Degrees of a minute. */
+#define DRIVE_CLOCK_UP		 90		/**< Degrees of 12 o'clock. */
+#define DRIVE_CLOCK_NEAR	 10		/**< Degrees from an axis: wide hand. */
+#define DRIVE_CLOCK_WIDE	 8		/**< Degrees to a corner near an axis. */
+#define DRIVE_CLOCK_HOUR_OFF 5		/**< Else, of the hour hand. */
+#define DRIVE_CLOCK_MIN_OFF	 4		/**< Else, of the minute hand. */
+#define DRIVE_CLOCK_POINTS	 4		/**< Start, tip and two corners. */
 
 /*
  * Modes of FUN_1f38_0dbd.
@@ -225,7 +247,6 @@
 
 /** What the port lacks; indexes of drive__missingNames. */
 typedef enum drive__missing_tag {
-	DRIVE__NO_TACHO,  /**< FUN_1f38_05f2. */
 	DRIVE__SOUND_OFF, /**< FUN_1f38_7001. */
 	DRIVE__MISSING_COUNT
 } drive__Missing;
@@ -340,6 +361,25 @@ static int16_t drive__moveNeedle(
 	bool	tachometer
 );
 
+static void drive__drawClock(
+	int surface
+);
+
+static void drive__drawHand(
+	int		 surface,
+	int16_t	 degrees,
+	int16_t	 narrow,
+	uint16_t tipAt
+);
+
+static void drive__handPoint(
+	fpu_Real  cosine,
+	fpu_Real  sine,
+	uint16_t  radiusAt,
+	int16_t * pLeft,
+	int16_t * pTop
+);
+
 static int16_t drive__step(void);
 
 static int16_t drive__cruise(void);
@@ -427,7 +467,6 @@ static int16_t drive__raceEnd(void);
 
 /** What drive__notPorted logs, by drive__Missing. */
 static const char * const drive__missingNames[DRIVE__MISSING_COUNT] = {
-	"FUN_1f38_05f2 (automatic, 8087 code)",
 	"stopping the sound (FUN_1f38_7001)",
 };
 
@@ -453,8 +492,9 @@ static bool drive__logged[DRIVE__MISSING_COUNT];
  * 			The dashboard picture is drawn (drive__drawDashboard),
  * 			the road's pictures are loaded (roadpic_load), the gear
  * 			shift, the gear, the steering wheel and both needles are
- * 			drawn; with an automatic (DS:0x58e6) the tachometer is
- * 			left out. The road starts (roadstate_start).
+ * 			drawn; with an automatic (DS:0x58e6) a clock takes the
+ * 			tachometer's place (drive__drawClock). The road starts
+ * 			(roadstate_start).
  * 			FUN_1f38_0f53, which loads the pictures of the steering
  * 			wheel, has no part in the port (drive__drawWheel). The
  * 			top rows of the windshield frame are copied to the
@@ -505,7 +545,7 @@ int16_t drive_run(void) {
 		drive__drawNeedle(display, shownRevs, true);
 		shownRevs = drive__moveNeedle(display, shownRevs, shownRevs, true);
 	} else {
-		drive__notPorted(DRIVE__NO_TACHO);
+		drive__drawClock(display);
 	}
 
 	*exe_data(DRIVE_UNKNOWN_824A) = 0;
@@ -1249,6 +1289,173 @@ static int16_t drive__moveNeedle(
 	}
 
 	return value;
+}
+
+/** ****************************************************************************
+ *
+ * \brief	Draw the clock an automatic shows in place of the tachometer.
+ *
+ * \param	surface			The screen (DS:0x7678).
+ *
+ * \details	Port of FUN_1f38_05f2, without the split screen (rows +
+ * 			100); the original draws straight to video memory (DS:0x787a,
+ * 			DS:0x767c). The color DS:0x2d2 is set the first time (0xb
+ * 			on EGA and VGA). The hour shown is (hour index / 2 + 20)
+ * 			modulo 12, plus 1, of the time of day (TimeOfDay). The
+ * 			hour hand turns 30 degrees an hour and half a degree a
+ * 			minute (half the minutes, rounded down), the minute hand 6
+ * 			degrees a minute; the angles are counted from 3 o'clock
+ * 			against the clock. The clock is drawn once and nothing
+ * 			under the hands is saved.
+ *
+ ******************************************************************************/
+static void drive__drawClock(
+	int surface
+) {
+	if (exe_readS16(DRIVE_NEEDLE_COLOR) < 0) {
+		exe_writeU16(DRIVE_NEEDLE_COLOR, DRIVE_NEEDLE_BRIGHT);
+	}
+
+	uint16_t hourIndex;
+	uint16_t minuteIndex;
+
+	calendar_timeOfDay(&hourIndex, &minuteIndex);
+
+	int16_t minute = (int16_t)minuteIndex;
+	int16_t hour = (int16_t)(((int16_t)hourIndex >> 1) + DRIVE_CLOCK_SHIFT);
+
+	hour = (int16_t)(hour % DRIVE_CLOCK_HOURS + 1);
+
+	drive__drawHand(
+		surface,
+		(int16_t)-(DRIVE_CLOCK_PER_HOUR * hour + (minute >> 1) - DRIVE_CLOCK_UP),
+		DRIVE_CLOCK_HOUR_OFF,
+		DRIVE_CLOCK_HOUR
+	);
+	drive__drawHand(
+		surface,
+		(int16_t)-(DRIVE_CLOCK_PER_MIN * minute - DRIVE_CLOCK_UP),
+		DRIVE_CLOCK_MIN_OFF,
+		DRIVE_CLOCK_MINUTE
+	);
+}
+
+/** ****************************************************************************
+ *
+ * \brief	Draw a hand of the clock.
+ *
+ * \param	surface			The screen (DS:0x7678).
+ * \param	degrees			The hand's angle, from 3 o'clock against the
+ * 							clock.
+ * \param	narrow			Degrees from the hand to its corners when it
+ * 							is not near an axis.
+ * \param	tipAt			DS offset of the real with the tip's distance
+ * 							from the center.
+ *
+ * \details	Half of FUN_1f38_05f2, which has this code twice. The hand
+ * 			has four points: its start (5 from the center) and its tip
+ * 			on the angle, and two corners 9 from the center, as many
+ * 			degrees to either side as narrow, or 8 when the hand is
+ * 			less than 10 degrees from an axis. Lines join the start
+ * 			with the other three and the tip with the corners. The
+ * 			angle in radians is degrees * pi / 180 on the 8087; for
+ * 			the start and the tip the cosine takes it from the
+ * 			register and the sine from a qword it was stored in.
+ *
+ ******************************************************************************/
+static void drive__drawHand(
+	int		 surface,
+	int16_t	 degrees,
+	int16_t	 narrow,
+	uint16_t tipAt
+) {
+	fpu_Real pi = fpu_fromDouble(exe_data(DRIVE_CLOCK_PI));
+	fpu_Real half = fpu_fromDouble(exe_data(DRIVE_CLOCK_HALF));
+	int16_t	 fromAxis = (int16_t)(degrees % DRIVE_CLOCK_UP);
+
+	if (fromAxis < 0) {
+		fromAxis = (int16_t)-fromAxis;
+	}
+
+	int16_t spread = narrow;
+
+	if (fromAxis < DRIVE_CLOCK_NEAR ||
+		fromAxis > DRIVE_CLOCK_UP - DRIVE_CLOCK_NEAR) {
+		spread = DRIVE_CLOCK_WIDE;
+	}
+
+	int16_t	 left[DRIVE_CLOCK_POINTS];
+	int16_t	 top[DRIVE_CLOCK_POINTS];
+	fpu_Real angle = fpu_div(fpu_mul(fpu_fromInt(degrees), pi), half);
+	fpu_Real cosine = fpu_cos(angle);
+	fpu_Real sine = fpu_sin(fpu_toDouble(angle));
+
+	drive__handPoint(cosine, sine, DRIVE_CLOCK_HUB, &left[0], &top[0]);
+	drive__handPoint(cosine, sine, tipAt, &left[1], &top[1]);
+
+	angle = fpu_div(fpu_mul(fpu_fromInt(degrees + spread), pi), half);
+	drive__handPoint(
+		fpu_cos(angle),
+		fpu_sin(angle),
+		DRIVE_CLOCK_SIDE,
+		&left[2],
+		&top[2]
+	);
+
+	angle = fpu_div(fpu_mul(fpu_fromInt(degrees - spread), pi), half);
+	drive__handPoint(
+		fpu_cos(angle),
+		fpu_sin(angle),
+		DRIVE_CLOCK_SIDE,
+		&left[3],
+		&top[3]
+	);
+
+	uint8_t color = (uint8_t)exe_readU16(DRIVE_NEEDLE_COLOR);
+
+	for (int from = 0; from < 2; from++) {
+		for (int to = from + 1; to < DRIVE_CLOCK_POINTS; to++) {
+			screen_line(
+				surface,
+				left[from],
+				top[from],
+				left[to],
+				top[to],
+				color
+			);
+		}
+	}
+}
+
+/** ****************************************************************************
+ *
+ * \brief	Work out a point of a hand of the clock.
+ *
+ * \param	cosine			Cosine of the point's angle.
+ * \param	sine			Sine of the point's angle.
+ * \param	radiusAt		DS offset of the real with the point's
+ * 							distance from the center.
+ * \param	pLeft			Out: the point's column.
+ * \param	pTop			Out: the point's row.
+ *
+ * \details	Part of FUN_1f38_05f2: the products with the distance are
+ * 			cut to integers (_ftol) and counted from the tachometer's
+ * 			center (0x91, 0x2a), the row upwards.
+ *
+ ******************************************************************************/
+static void drive__handPoint(
+	fpu_Real  cosine,
+	fpu_Real  sine,
+	uint16_t  radiusAt,
+	int16_t * pLeft,
+	int16_t * pTop
+) {
+	fpu_Real radius = fpu_fromDouble(exe_data(radiusAt));
+	int16_t	 across = (int16_t)fpu_toLong(fpu_mul(cosine, radius));
+	int16_t	 up = (int16_t)fpu_toLong(fpu_mul(sine, radius));
+
+	*pLeft = (int16_t)(DRIVE_REVS_COLUMN + across);
+	*pTop = (int16_t)(DRIVE_PANEL_TOP - up + DRIVE_NEEDLE_ROW);
 }
 
 /** ****************************************************************************

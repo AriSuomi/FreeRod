@@ -108,4 +108,12 @@ int32_t fpu_toLong(
 	fpu_Real value
 );
 
+fpu_Real fpu_sin(
+	fpu_Real value
+);
+
+fpu_Real fpu_cos(
+	fpu_Real value
+);
+
 #endif // DOS_FPU_H_INCLUDED
