@@ -12,7 +12,7 @@
  * 			they are switched off. The original calibrates its delay loop
  * 			at the start (CalibrateDelay, 1f38:703e; InitSound,
  * 			1f38:7101); the port uses a fixed length (EFFECTS_DELAY_STEPS,
- * 			EFFECTS_CALL_STEPS), still to be compared with DOSBox.
+ * 			EFFECTS_CALL_STEPS), calibrated against DOSBox.
  *
  ******************************************************************************/
 
@@ -45,18 +45,18 @@
 
 /**
  * Length of one unit of DelayLoop (3196:0002) in steps of the timer chip's
- * clock: about 6 us. The original measures the machine so that
- * DelayLoop(10) runs a fixed share of a BIOS tick; with the cost of the
- * measuring loop's call a unit comes out at 4..7 us (docs/sound.md).
+ * clock: 4.5 us, measured against DOSBox from BoltSound, ErrorBeep and
+ * FUN_1f38_77e1/7817 (docs/sound.md).
  */
-#define EFFECTS_DELAY_STEPS 7
+#define EFFECTS_DELAY_STEPS 5
 
 /**
  * Time the original needs around one DelayLoop (the calls, the long
  * division of the frequency, Random), in steps of the timer chip's clock:
- * about 60 us, a guess for a 286. It matters for the delays of one unit.
+ * 31 us, measured against DOSBox alongside EFFECTS_DELAY_STEPS. It matters
+ * for the delays of one unit.
  */
-#define EFFECTS_CALL_STEPS 72
+#define EFFECTS_CALL_STEPS 38
 
 /** Port 61h bits that let the speaker sound. */
 #define EFFECTS_SPEAKER_BITS (DOS_SPEAKER_GATE | DOS_SPEAKER_DATA)

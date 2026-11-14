@@ -13,12 +13,12 @@ FreeRod is a work in progress. Currently implemented:
 - Garage, under-the-hood engine work, tires, transmission, paint/bodywork, and gas station
 - Street (Bob's Drive-In), opponent challenges, race outcomes, save/load, and Hall of Fame
 - Driving and 3D road rendering (keyboard, mouse, and joystick/gamepad input)
-- PC-speaker sound and music output (music tracks, sound effects, and driving/tuning sounds)
+- PC-speaker sound and music output (music tracks, sound effects, and driving/tuning sounds, calibrated against DOSBox)
 - Built-in resource viewer (`--viewer`) and optional hi-res PNG art replacement (`--mod`)
 
 Still in progress:
 
-- Verification and comparison of driving and sound against the original DOS version
+- Driving verification against the original DOS version
 - Future cleanup for modding, Street Rod SE data support, and optional Amiga mode
 
 ## Requirements
