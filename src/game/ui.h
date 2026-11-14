@@ -128,6 +128,10 @@ void ui_addMoney(
 	int16_t amount
 );
 
+void ui_statusGear(
+	int16_t index
+);
+
 void ui_message(
 	int16_t message
 );

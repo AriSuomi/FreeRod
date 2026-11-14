@@ -70,6 +70,11 @@ fpu_Real fpu_toDouble(
 	fpu_Real value
 );
 
+void fpu_toSingle(
+	fpu_Real  value,
+	uint8_t * pBytes
+);
+
 fpu_Real fpu_add(
 	fpu_Real left,
 	fpu_Real right

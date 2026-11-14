@@ -354,9 +354,9 @@ static int8_t race__percents[STATE_PART_MAX + 1];
  * 							in DS:0x799c, 0x7a9e and 0x78e0.
  * \retval	false			No outcome: the caller keeps the race out.
  *
- * \details	Not part of the original. The cars' movement in a drive
- * 			(FUN_1000_da25) is not ported yet, so drive.c ends a race
- * 			with the outcome given here.
+ * \details	Not part of the original. While segment 3645 (the 3D road)
+ * 			is not ported yet, --race-result overrides the race outcome
+ * 			here for testing race_result.
  *
  ******************************************************************************/
 bool race_standIn(void) {
@@ -368,7 +368,7 @@ bool race_standIn(void) {
 	exe_writeU16(RACE_WON_FLAGS, (uint16_t)((race_testFlags >> 8) & 1));
 	exe_writeU16(RACE_SPEED, (uint16_t)race_testSpeed);
 	plat_log(
-		"driving is not ported: outcome 0x%x at %d mph (--race-result)",
+		"overriding race outcome: 0x%x at %d mph (--race-result)",
 		(unsigned)race_testFlags,
 		race_testSpeed
 	);

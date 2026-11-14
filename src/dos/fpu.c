@@ -40,6 +40,11 @@
 #define FPU_SINGLE_BIAS		127					  /**< Dword exponent bias. */
 #define FPU_SINGLE_EXPONENT 0xff				  /**< Dword exponent mask. */
 #define FPU_SINGLE_SIGN		0x80000000ul		  /**< Dword sign bit. */
+#define FPU_SINGLE_INF		0x7f800000ul		  /**< Dword infinity field. */
+#define FPU_SINGLE_DROPPED	0xffffffffffull		  /**< Bits a dword lacks. */
+#define FPU_SINGLE_HALF		0x8000000000ull		  /**< Half of its last bit. */
+#define FPU_SINGLE_LAST		0x10000000000ull	  /**< Its last bit. */
+#define FPU_SINGLE_SHIFT	40					  /**< Dropped dword bits. */
 #define FPU_LOW_HALF		0xffffffffull		  /**< Low 32 bits. */
 
 /*******************************************************************************
@@ -216,6 +221,59 @@ fpu_Real fpu_toDouble(
 	value.mantissa = kept;
 
 	return value;
+}
+
+/** ****************************************************************************
+ *
+ * \brief	Store a 4-byte real (FST / FSTP dword).
+ *
+ * \param	value			The number.
+ * \param	pBytes			Out: the 4 bytes of the real, lowest first (as in
+ * 							Sr.exe's data segment).
+ *
+ * \details	Rounds the mantissa to 24 bits to nearest or even, and writes
+ * 			zero on underflow or infinity on overflow.
+ *
+ ******************************************************************************/
+void fpu_toSingle(
+	fpu_Real  value,
+	uint8_t * pBytes
+) {
+	uint32_t bits = 0;
+
+	if (value.mantissa != 0) {
+		uint64_t dropped = value.mantissa & FPU_SINGLE_DROPPED;
+		uint64_t kept = value.mantissa & ~FPU_SINGLE_DROPPED;
+
+		if (dropped > FPU_SINGLE_HALF ||
+			(dropped == FPU_SINGLE_HALF && (kept & FPU_SINGLE_LAST) != 0)) {
+			kept += FPU_SINGLE_LAST;
+
+			if (kept == 0) {
+				kept = FPU_TOP_BIT;
+				value.exponent++;
+			}
+		}
+
+		int32_t biased = value.exponent + FPU_SINGLE_BIAS;
+
+		if (biased >= FPU_SINGLE_EXPONENT) {
+			bits = FPU_SINGLE_INF;
+		} else if (biased > 0) {
+			uint32_t mask = (1ul << FPU_SINGLE_FRACTION) - 1;
+
+			bits = ((uint32_t)biased << FPU_SINGLE_FRACTION) |
+				(uint32_t)((kept >> FPU_SINGLE_SHIFT) & mask);
+		}
+
+		if (value.negative && bits != 0) {
+			bits |= FPU_SINGLE_SIGN;
+		}
+	}
+
+	for (int index = 0; index < 4; index++) {
+		pBytes[index] = (uint8_t)(bits >> (index * 8));
+	}
 }
 
 /** ****************************************************************************

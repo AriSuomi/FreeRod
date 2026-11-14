@@ -669,9 +669,9 @@ static void street__setHotspots(
 	int16_t			top = (int16_t)(pBoxes[STREET_BOX_1 + 1] + carTop);
 	int16_t			right = (int16_t)(pBoxes[STREET_BOX_1 + 2] + left - 1);
 	int16_t			bottom = (int16_t)(exe_readS16(
-								   (uint16_t)(street__element(0) + STREET_TOP)
-							   ) -
-							   1);
+										   (uint16_t)(street__element(0) + STREET_TOP)
+									   ) -
+									   1);
 
 	exe_writeU16((uint16_t)(car + STREET_LEFT), (uint16_t)left);
 	exe_writeU16((uint16_t)(car + STREET_RIGHT), (uint16_t)right);
@@ -1084,8 +1084,7 @@ static bool street__police(
 				exe_writeU16(STREET_CALLED, 0);
 			}
 		}
-	} else if (leaving == 1 && exe_readS16(STREET_POLICE) == 1 &&
-			   random_next(100) < chance) {
+	} else if (leaving == 1 && exe_readS16(STREET_POLICE) == 1 && random_next(100) < chance) {
 		happened = true;
 		cursor_set(CURSOR_HIDE_NOW);
 		plat_log(
@@ -1303,19 +1302,17 @@ static void street__drawCar(
  * \brief	Meet the opponent and race until no race is agreed.
  *
  * \return	STREET_RACE_NONE, STREET_RACE_BACK or STREET_RACE_LEFT
-eturn	STREET_RACE_NONE, STREET_RACE_BACK or STREET_RACE_LEFT
  * 			(screen 0x25 closed; home, sentenced or won the game).
  *
  * \details	Part of FUN_1000_ab8b: the challenge loop. After a race
- * 			(race_result) the counts DS:0x4970..0x4974 and the
+ * 			race_result the counts DS:0x4970..0x4974 and the
  * 			opponent's counters (+0xc races, +0xd wins) change, except
  * 			after bet event 1. The car without a driver offers its road
  * 			race after the player won its drag race; winning that one
- * 			wins the game. Driving is not ported: without --race-result
- * 			(race_standIn) the opponent drives off as after a no. After
- * 			the result the colors of the race are undone
- * 			(driving_setRaceColors). Not ported: the sound
- * 			FUN_1f38_7001.
+ * 			wins the game. With --race-result (race_standIn) the outcome
+ * 			is overridden after driving_run. After the result the colors
+ * 			of the race are undone (driving_setRaceColors). Not ported:
+ * 			the sound FUN_1f38_7001.
  *
  ******************************************************************************/
 static int16_t street__challenge(void) {
@@ -1332,12 +1329,7 @@ static int16_t street__challenge(void) {
 			exe_text(STREET_TEXT_RACE),
 			exe_readS16(STREET_STATUS_W)
 		);
-
-		if (!race_standIn()) {
-			plat_log("driving is not ported: the opponent drives off");
-
-			return STREET_RACE_NONE;
-		}
+		race_standIn();
 
 		int16_t result = race_result();
 		bool	won = exe_readS16(RACE_WON) != 0;

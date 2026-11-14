@@ -9,10 +9,9 @@
  * 			shift (FUN_1f38_12f7, 14f2), steering wheel (1130) and
  * 			needles (01d2, 0349, 0425), and the timer handler of a drive
  * 			(TimerIsr2 1000:238c with FUN_1000_1aad, 1b27, 2374), which
- * 			drives the player's car in a race. The road (segment 3645),
- * 			the cars' movement (FUN_1000_da25) and the sounds are not
- * 			ported yet: drive__notPorted stands in for each and logs it
- * 			once.
+ * 			drives the player's car in a race. The road (segment 3645)
+ * 			and the sounds are not ported yet: drive__notPorted stands in
+ * 			for each and logs it once.
  *
  * 			Layout. On EGA the original splits the screen (line compare
  * 			register, FUN_31a0_0014): the instrument panel is at the start
@@ -41,6 +40,7 @@
 #include "game/globals.h"
 #include "game/input.h"
 #include "game/lib.h"
+#include "game/race.h"
 #include "game/random.h"
 #include "game/screen.h"
 #include "game/ui.h"
@@ -160,6 +160,7 @@
 #define DRIVE_JUMPED_LIGHT 0x81	  /**< Flags: moved before "Go !". */
 #define DRIVE_NEEDLE_STEP  1	  /**< A needle moves for more than this. */
 #define DRIVE_KEY_ESCAPE   0x1b	  /**< Key that ends a cruise. */
+#define DRIVE_FRAME_TICKS  9	  /**< Ticks FUN_3645_1e9e waits per frame. */
 
 /*
  * The timer handler of a drive. Variables in the data segment image.
@@ -226,7 +227,6 @@ typedef enum drive__missing_tag {
 	DRIVE__ROAD_FRAME, /**< FUN_3645_213d. */
 	DRIVE__ROAD_CHECK, /**< FUN_3645_206b. */
 	DRIVE__SOUND_OFF,  /**< FUN_1f38_7001. */
-	DRIVE__MOVEMENT,   /**< FUN_1000_da25. */
 	DRIVE__MISSING_COUNT
 } drive__Missing;
 
@@ -401,12 +401,10 @@ static void drive__setSpeed(
 	bool brake
 );
 
+static void drive__paceFrame(void);
+
 static void drive__steer(
 	bool steer
-);
-
-static void drive__stopCar(
-	uint8_t flags
 );
 
 static uint16_t drive__wearAt(
@@ -433,7 +431,6 @@ static const char * const drive__missingNames[DRIVE__MISSING_COUNT] = {
 	"a frame of the road (FUN_3645_213d)",
 	"the road's check of the car (3645:206b)",
 	"stopping the sound (FUN_1f38_7001)",
-	"the car's movement (FUN_1000_da25)",
 };
 
 /** Which of them were logged already. */
@@ -513,6 +510,11 @@ int16_t drive_run(void) {
 
 	*exe_data(DRIVE_UNKNOWN_824A) = 0;
 	drive__notPorted(DRIVE__ROAD_START);
+
+	if (*exe_data(DRIVE_RACING) != 0) {
+		driving_roadStart();
+	}
+
 	plat_copyRect(view, display, 0, 0, PLAT_WIDTH, DRIVE_TOP_ROWS);
 	video_showPalette();
 
@@ -520,6 +522,13 @@ int16_t drive_run(void) {
 
 	for (;;) {
 		drive__notPorted(DRIVE__ROAD_FRAME);
+
+		if (*exe_data(DRIVE_RACING) != 0 &&
+			exe_readS16(DRIVE_STATE) >= 2 &&
+			race_testFlags == RACE_NO_TEST) {
+			drive__paceFrame();
+		}
+
 		dos_service();
 		result = drive__step();
 
@@ -1371,15 +1380,14 @@ static int16_t drive__cruise(void) {
  * 			212 ticks (DS:0x5cc). 1: a car that moves in that time
  * 			jumped the light (flags 0x81, the race is over); when the
  * 			time is up "Go !" shows (DS:0x7d66 = 1). 2: the cars move
- * 			(FUN_1000_da25, not ported) until there is an outcome; once
- * 			the player's car moves "Go !" is cleared. 3: the cars move
- * 			until there is an outcome. Steps 0 and 1 return the outcome
- * 			so far, so a race with one is over at once.
+ * 			(driving_move) until there is an outcome; once the player's
+ * 			car moves "Go !" is cleared. 3: the cars move until there is
+ * 			an outcome. Steps 0 and 1 return the outcome so far, so a
+ * 			race with one is over at once.
  *
  * 			The player's car is driven by drive__timerInterrupt meanwhile.
- * 			Stand-in: the cars' movement is not ported, so steps 2 and 3
- * 			end the race with the outcome as it is (--race-result gives
- * 			one before the drive).
+ * 			With --race-result step 2 ends the race at once so test runs
+ * 			reach race_result without driving.
  *
  ******************************************************************************/
 static int16_t drive__race(void) {
@@ -1410,15 +1418,39 @@ static int16_t drive__race(void) {
 			break;
 
 		case 2:
-		case 3:
-			/*
-			 * The original moves the cars here and goes on while there is
-			 * no outcome (step 2 clears "Go !" and becomes step 3 once the
-			 * player's car moves).
-			 */
-			drive__notPorted(DRIVE__MOVEMENT);
+			if (race_testFlags != RACE_NO_TEST) {
+				drive__timerOff();
 
-			return 1;
+				return 1;
+			}
+
+			driving_move();
+
+			if (exe_readU16(DRIVE_FLAGS) != 0 ||
+				exe_readU16(DRIVE_WON_FLAGS) != 0) {
+				drive__timerOff();
+
+				return 1;
+			}
+
+			if (drive__playerWord(DRIVING_SPEED) > 0) {
+				ui_status(-1, exe_text(DRIVE_TEXT_BLANK), 0);
+				exe_writeU16(DRIVE_STATE, 3);
+			}
+
+			return 0;
+
+		case 3:
+			if (exe_readU16(DRIVE_FLAGS) != 0 ||
+				exe_readU16(DRIVE_WON_FLAGS) != 0) {
+				drive__timerOff();
+
+				return 1;
+			}
+
+			driving_move();
+
+			return 0;
 
 		default:
 			return state;
@@ -1819,8 +1851,7 @@ static void drive__autoDriver(
 			place > drive__raceEnd() - DRIVE_AUTO_STOP) {
 			pControls->gas = true;
 		}
-	} else if (gear < drive__playerWord(DRIVING_GEARS) &&
-			   exe_readS16(DRIVE_AUTO_MAY) != 0) {
+	} else if (gear < drive__playerWord(DRIVING_GEARS) && exe_readS16(DRIVE_AUTO_MAY) != 0) {
 		pControls->shift = true;
 		pControls->gas = true;
 		exe_writeU16(
@@ -1863,7 +1894,7 @@ static void drive__wearParts(void) {
 	}
 
 	if (exe_readS16(engine) > DRIVE_WORN_OUT) {
-		drive__stopCar(DRIVE_BLOWN_ENGINE);
+		drive_stopCar(DRIVE_BLOWN_ENGINE);
 	}
 }
 
@@ -1877,7 +1908,7 @@ static void drive__wearParts(void) {
  * 			range's pull (record +0x14) up to 5700 (5690 with an
  * 			automatic); each step at 5700 is counted (DS:0x6e6, cleared
  * 			below 5700) and with more of them than 15 less a thousandth
- * 			of the engine's wear the engine breaks (drive__stopCar,
+ * 			of the engine's wear the engine breaks (drive_stopCar,
  * 			flags 5). Without gas the revs fall by the range's second
  * 			value (+0x16) while they are above 1500, or above that value
  * 			with the car in gear.
@@ -1908,11 +1939,10 @@ static void drive__turnEngine(
 			exe_writeU16(DRIVE_OVER_REVS, (uint16_t)steps);
 
 			if (DRIVE_OVER_STEPS - wear / 1000 < steps) {
-				drive__stopCar(DRIVE_BLOWN_ENGINE);
+				drive_stopCar(DRIVE_BLOWN_ENGINE);
 			}
 		}
-	} else if (revs > DRIVE_IDLE_REVS ||
-			   (drive__playerWord(DRIVING_GEAR) > 0 && fall < revs)) {
+	} else if (revs > DRIVE_IDLE_REVS || (drive__playerWord(DRIVING_GEAR) > 0 && fall < revs)) {
 		revs -= fall;
 		drive__setPlayerWord(DRIVING_REVS, revs);
 	}
@@ -1966,7 +1996,7 @@ static void drive__shiftGear(
 		}
 
 		if (broken) {
-			drive__stopCar(DRIVE_BLOWN_GEARS);
+			drive_stopCar(DRIVE_BLOWN_GEARS);
 		}
 	}
 
@@ -2164,6 +2194,24 @@ static void drive__steer(
 
 /** ****************************************************************************
  *
+ * \brief	Wait 9 timer ticks to match FUN_3645_1e9e's frame pacing.
+ *
+ * \details	Not part of the original's timing loop: stands in for the
+ * 			9-tick busy-wait at the end of FUN_3645_1e9e while segment
+ * 			3645 is not ported yet, so car movement runs at ~8.1 Hz in
+ * 			lockstep with TimerIsr2.
+ *
+ ******************************************************************************/
+static void drive__paceFrame(void) {
+	uint32_t until = globals_ticks + DRIVE_FRAME_TICKS;
+
+	while ((int32_t)(globals_ticks - until) < 0) {
+		dos_service();
+	}
+}
+
+/** ****************************************************************************
+ *
  * \brief	Stop the player's car: something ended its race.
  *
  * \param	flags			Bits added to the record's flags (+0xbc).
@@ -2173,7 +2221,7 @@ static void drive__steer(
  * 			are cleared and the time so far (+0xc0) is kept in +0xbe.
  *
  ******************************************************************************/
-static void drive__stopCar(
+void drive_stopCar(
 	uint8_t flags
 ) {
 	*exe_data(DRIVE_FLAGS) |= flags;

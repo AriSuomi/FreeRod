@@ -67,6 +67,8 @@
 #define UI_INPUT_UNKNOWN	 0x290c /**< DS offset: byte zeroed in input. */
 #define UI_MONEY_DIGITS		 12		/**< Buffer for the money amount. */
 #define UI_MONEY_WIDTH		 0x30	/**< Width given for the amount. */
+#define UI_GEAR_TEXTS		 0x482	/**< DS: pointers to "0".."4","N","D". */
+#define UI_GEAR_WIDTH		 8		/**< Width of the gear text. */
 #define UI_FIRST_CHARACTER	 0x20	/**< Lowest character typed. */
 #define UI_LAST_CHARACTER	 0x5a	/**< Highest character typed. */
 #define UI_LIST_EMPTY		 0x3ea	/**< ui_list result when count is 0. */
@@ -1362,6 +1364,32 @@ void ui_addMoney(
 
 /** ****************************************************************************
  *
+ * \brief	Show a gear or shifter digit in the status line during a drive.
+ *
+ * \param	index			Index into DS:0x482: 0..4 gear, 5 "N", 6 "D".
+ *
+ * \details	Port of FUN_1f38_22e9. Writes the entry from the table of DS
+ * 			text pointers at DS:0x482 using ui_status at
+ * 			globals_statusValueLeft (width 8), with globals_statusShown
+ * 			set to 1 while drawing so it shows over any message.
+ *
+ ******************************************************************************/
+void ui_statusGear(
+	int16_t index
+) {
+	int16_t savedShown = globals_statusShown;
+
+	globals_statusShown = 1;
+	ui_status(
+		globals_statusValueLeft,
+		exe_text(exe_readU16((uint16_t)(UI_GEAR_TEXTS + index * 2))),
+		UI_GEAR_WIDTH
+	);
+	globals_statusShown = savedShown;
+}
+
+/** ****************************************************************************
+ *
  * \brief	Sound the error beep.
  *
  * \details	Stands in for FUN_1f38_77ba, which plays a short tone on the
@@ -1984,8 +2012,7 @@ int16_t ui_list(
 		);
 		inputMaxLen = (int16_t)((ui__field(inputElement, UI_RIGHT) -
 								 ui__field(inputElement, UI_LEFT)) /
-								UI_INPUT_COLUMNS
-		);
+								UI_INPUT_COLUMNS);
 
 		if (globals_inputIsLeft == 0) {
 			ui__fillInputFromList(
