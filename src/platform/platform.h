@@ -6,7 +6,8 @@
  *
  * \details	It emulates what the DOS game had: a 320x200 screen with two
  * 			pages of video memory, a 256-entry palette (like the VGA DAC), a
- * 			keyboard, a mouse, a programmable timer and a millisecond clock.
+ * 			keyboard, a mouse, a programmable timer, a millisecond clock and
+ * 			the PC speaker (plat_sound*, implemented in sound.c).
  * 			Game and dos/ code use only this interface.
  *
  * 			Each page is two layers (see CLAUDE.md, "Graphics and hi-res
@@ -59,6 +60,12 @@
 
 #define PLAT_JOY_BUTTON_1 1 /**< Joystick button 1 (gamepad: A). */
 #define PLAT_JOY_BUTTON_2 2 /**< Joystick button 2 (gamepad: B). */
+
+/**
+ * Steps per second of the sound clock: the input clock of the PC's timer
+ * chip, whose channel 2 drives the speaker (see platform/sound.c).
+ */
+#define PLAT_SOUND_HZ 1193182
 
 /*******************************************************************************
 ;
@@ -329,6 +336,29 @@ uint32_t plat_ticksMs(void);
 
 void plat_delayMs(
 	uint32_t milliseconds
+);
+
+void plat_soundSetDivisor(
+	uint16_t divisor
+);
+
+void plat_soundSetSpeaker(
+	bool gate,
+	bool enable
+);
+
+void plat_soundDelay(
+	uint32_t steps
+);
+
+uint32_t plat_soundAhead(void);
+
+bool plat_soundRecord(
+	const char * pPath
+);
+
+bool plat_soundLog(
+	const char * pPath
 );
 
 bool plat_saveScreenshot(

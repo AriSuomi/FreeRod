@@ -38,6 +38,7 @@
 #endif
 
 #include "platform/platform.h"
+#include "platform/sound.h"
 
 /*******************************************************************************
 ;
@@ -402,6 +403,9 @@ bool plat_init(
 	plat__timerBaseCount = SDL_GetPerformanceCounter();
 	plat__timerBaseTicks = 0;
 
+	/* The game runs without sound. */
+	(void)plat_soundOpen();
+
 	return true;
 }
 
@@ -411,6 +415,8 @@ bool plat_init(
  *
  ******************************************************************************/
 void plat_shutdown(void) {
+	plat_soundClose();
+
 	for (int id = 1; id <= MAX_IMAGES; id++) {
 		if (plat__images[id].used) {
 			plat_imageDestroy(id);

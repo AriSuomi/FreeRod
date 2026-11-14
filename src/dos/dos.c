@@ -38,6 +38,12 @@
 #define DOS_RELEASE		 0x80 /**< Added to a scan code for a release. */
 #define DOS_MICKEYS		 2	  /**< Mickeys per game pixel, both axes. */
 
+/**
+ * How far dos_speakerDelay lets the sound run ahead of real time before
+ * it waits, in steps of the timer chip's clock (20 ms).
+ */
+#define DOS_SOUND_LEAD (DOS_PIT_HZ / 50)
+
 /*******************************************************************************
 ;
 ;	T Y P E S
@@ -93,6 +99,8 @@ static int		dos__hostTop;	   /**< Host pointer row seen last. */
 static unsigned dos__mouseButtons; /**< Clicks seen by dos_mouseMotion. */
 
 static dos_QuitHandler dos__serviceHook; /**< Test hook, or NULL. */
+
+static uint8_t dos__speakerPort; /**< Bits 0 and 1 of port 61h. */
 
 /**
  * Printable keys of a US keyboard by row (scan code set 1).
@@ -233,6 +241,83 @@ void dos_service(void) {
 		plat_present();
 	} else {
 		plat_delayMs(1);
+	}
+}
+
+/** ****************************************************************************
+ *
+ * \brief	Program the timer chip's channel 2, which drives the speaker.
+ *
+ * \param	divisor			Divisor of the 1193182 Hz input clock: the pitch
+ * 							of the square wave; 0 means 65536.
+ *
+ * \details	Replaces out(0x43, 0xb6), out(0x42, low), out(0x42, high).
+ *
+ ******************************************************************************/
+void dos_setSpeakerDivisor(
+	uint16_t divisor
+) {
+	plat_soundSetDivisor(divisor);
+}
+
+/** ****************************************************************************
+ *
+ * \brief	Read the speaker bits of port 61h.
+ *
+ * \return	DOS_SPEAKER_GATE and DOS_SPEAKER_DATA as last written; the
+ * 			other bits of the port are 0.
+ *
+ * \details	Replaces in(0x61).
+ *
+ ******************************************************************************/
+uint8_t dos_speakerPort(void) {
+	return dos__speakerPort;
+}
+
+/** ****************************************************************************
+ *
+ * \brief	Write the speaker bits of port 61h.
+ *
+ * \param	value			DOS_SPEAKER_GATE: channel 2 makes its square
+ * 							wave; DOS_SPEAKER_DATA: it reaches the speaker
+ * 							(with the gate off, the bit moves the speaker
+ * 							directly). Other bits are ignored.
+ *
+ * \details	Replaces out(0x61, value).
+ *
+ ******************************************************************************/
+void dos_setSpeakerPort(
+	uint8_t value
+) {
+	dos__speakerPort = value & (DOS_SPEAKER_GATE | DOS_SPEAKER_DATA);
+
+	plat_soundSetSpeaker(
+		(value & DOS_SPEAKER_GATE) != 0,
+		(value & DOS_SPEAKER_DATA) != 0
+	);
+}
+
+/** ****************************************************************************
+ *
+ * \brief	Let time pass between two changes of the speaker, for sounds
+ * 			the game made in a busy loop.
+ *
+ * \param	steps			Time in steps of 1 / DOS_PIT_HZ seconds.
+ *
+ * \details	Replaces a delay loop that ran with interrupts on. The sound
+ * 			keeps its exact timing: the time is added to the sound clock,
+ * 			and only when that is 20 ms ahead of real time does the
+ * 			function wait, with dos_service, so the timer handler runs
+ * 			meanwhile as it did in the original.
+ *
+ ******************************************************************************/
+void dos_speakerDelay(
+	uint32_t steps
+) {
+	plat_soundDelay(steps);
+
+	while (plat_soundAhead() > DOS_SOUND_LEAD) {
+		dos_service();
 	}
 }
 

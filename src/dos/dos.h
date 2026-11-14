@@ -32,7 +32,10 @@
 ;
 ;-----------------------------------------------------------------------------*/
 
-#define DOS_PIT_HZ 1193182 /**< Input clock of the timer chip (8253). */
+#define DOS_PIT_HZ		 1193182 /**< Input clock of the timer chip (8253). */
+
+#define DOS_SPEAKER_GATE 1 /**< Port 61h bit 0: timer channel 2 runs. */
+#define DOS_SPEAKER_DATA 2 /**< Port 61h bit 1: speaker enable. */
 
 /*******************************************************************************
 ;
@@ -114,6 +117,20 @@ bool dos_joystickRead(
 	int16_t * pCountX,
 	int16_t * pCountY,
 	uint8_t * pButtons
+);
+
+void dos_setSpeakerDivisor(
+	uint16_t divisor
+);
+
+uint8_t dos_speakerPort(void);
+
+void dos_setSpeakerPort(
+	uint8_t value
+);
+
+void dos_speakerDelay(
+	uint32_t steps
 );
 
 #endif // DOS_DOS_H_INCLUDED

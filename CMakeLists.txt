@@ -48,6 +48,7 @@ add_executable(freerod
     src/game/ui.c
     src/game/video.c
     src/platform/platform.c
+    src/platform/sound.c
 )
 
 target_include_directories(freerod PRIVATE src)

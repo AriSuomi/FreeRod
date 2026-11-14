@@ -49,6 +49,11 @@
  * 								this outcome (bits 0..7 for
  * 								DS:0x799c, 0x100 won) and the speed
  * 								at the end (mph); C notation (0x41)
+ * 			--sound-test		play test tones and noise on the speaker
+ * 								(about 2.5 seconds) and exit
+ * 			--sound-wav FILE	record the sound as a WAV file
+ * 			--sound-log FILE	write every change of the speaker (time,
+ * 								divisor or port bits) to a text file
  *
  ******************************************************************************/
 
@@ -114,6 +119,9 @@ typedef struct main__options_tag {
 	const char * pKeys;		  /**< Test keys still to type, or NULL. */
 	int			 moveCount;	  /**< Test joystick moves given. */
 	int			 moveNext;	  /**< Next test joystick move to make. */
+	bool		 soundTest;	  /**< Play the test sounds and exit. */
+	const char * pSoundWav;	  /**< Sound recording, or NULL. */
+	const char * pSoundLog;	  /**< Log of the speaker, or NULL. */
 } main__Options;
 
 /**
@@ -144,6 +152,8 @@ typedef struct main__joystick_move_tag {
 static void main__exitGame(void);
 
 static void main__testHook(void);
+
+static void main__soundTest(void);
 
 static const char * main__resourceKindName(
 	const lib_Resource * pResource
@@ -250,6 +260,9 @@ int main(
 		.pKeys = NULL,
 		.moveCount = 0,
 		.moveNext = 0,
+		.soundTest = false,
+		.pSoundWav = NULL,
+		.pSoundLog = NULL,
 	};
 
 	globals_mouseAllowed = 1;
@@ -274,6 +287,22 @@ int main(
 		return 1;
 	}
 	dos_setQuitHandler(main__exitGame);
+
+	if (options.pSoundWav && !plat_soundRecord(options.pSoundWav)) {
+		plat_shutdown();
+		return 1;
+	}
+
+	if (options.pSoundLog && !plat_soundLog(options.pSoundLog)) {
+		plat_shutdown();
+		return 1;
+	}
+
+	if (options.soundTest) {
+		main__soundTest();
+		plat_shutdown();
+		return 0;
+	}
 
 	screen_initSurfaces();
 	input_init();
@@ -543,6 +572,11 @@ static bool main__parseOptions(
 			continue;
 		}
 
+		if (strcmp(pOption, "--sound-test") == 0) {
+			pOptions->soundTest = true;
+			continue;
+		}
+
 		if (strcmp(pOption, "--viewer") == 0) {
 			pOptions->viewerOnly = true;
 			continue;
@@ -571,6 +605,10 @@ static bool main__parseOptions(
 			pOptions->renderScale = atoi(pValue);
 		} else if (strcmp(pOption, "--screenshot") == 0) {
 			pOptions->pScreenshot = pValue;
+		} else if (strcmp(pOption, "--sound-wav") == 0) {
+			pOptions->pSoundWav = pValue;
+		} else if (strcmp(pOption, "--sound-log") == 0) {
+			pOptions->pSoundLog = pValue;
 		} else if (strcmp(pOption, "--frames") == 0) {
 			pOptions->maxFrames = atol(pValue);
 		} else if (strcmp(pOption, "--shot-at") == 0) {
@@ -626,6 +664,53 @@ static bool main__parseOptions(
 	}
 
 	return true;
+}
+
+/** ****************************************************************************
+ *
+ * \brief	Play test sounds on the speaker (--sound-test), to check the
+ * 			platform's sound without the game.
+ *
+ * \details	Not in the original. A quarter second each: four tones (262,
+ * 			330, 392, 523 Hz), silence, noise made by moving the speaker
+ * 			by hand with the gate off (800 changes, 151..650 steps
+ * 			apart), silence, a 25 kHz tone (what SpeakerOn leaves
+ * 			playing: should not be heard) and silence.
+ *
+ ******************************************************************************/
+static void main__soundTest(void) {
+	static const uint16_t tones[] = { 262, 330, 392, 523 };
+
+	uint32_t quarter = DOS_PIT_HZ / 4;
+
+	dos_setSpeakerPort(DOS_SPEAKER_GATE | DOS_SPEAKER_DATA);
+
+	for (size_t tone = 0; tone < sizeof tones / sizeof tones[0]; tone++) {
+		dos_setSpeakerDivisor((uint16_t)(DOS_PIT_HZ / tones[tone]));
+		dos_speakerDelay(quarter);
+	}
+
+	dos_setSpeakerPort(0);
+	dos_speakerDelay(quarter);
+
+	for (uint32_t change = 0; change < 800; change++) {
+		dos_setSpeakerPort((change & 1) ? 0 : DOS_SPEAKER_DATA);
+		dos_speakerDelay(151 + change * 37 % 500);
+	}
+
+	dos_setSpeakerPort(0);
+	dos_speakerDelay(quarter);
+
+	dos_setSpeakerDivisor((uint16_t)(DOS_PIT_HZ / 25000));
+	dos_setSpeakerPort(DOS_SPEAKER_GATE | DOS_SPEAKER_DATA);
+	dos_speakerDelay(quarter);
+	dos_setSpeakerPort(0);
+	dos_speakerDelay(quarter);
+
+	/* Let the sound device play what is still buffered. */
+	for (int wait = 0; wait < 200; wait++) {
+		dos_service();
+	}
 }
 
 /** ****************************************************************************
