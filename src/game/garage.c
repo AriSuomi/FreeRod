@@ -49,7 +49,6 @@
 #define GARAGE_EMPTY_TEXT		 0x50b5 /**< DS offset: empty text. */
 #define GARAGE_CAR_NAME			 0x29ff /**< DS: name of the car shown. */
 #define GARAGE_NO_CAR_NAME		 0x5094 /**< DS: banner text without a car. */
-#define GARAGE_RACE_DONE		 0x4f48 /**< DS offset: set by the street. */
 #define GARAGE_BLINK_ENTRY		 12		/**< Palette entry that blinks. */
 #define GARAGE_BLINK_OFF		 5		/**< Standard color when off. */
 
@@ -441,8 +440,8 @@ static uint16_t garage__tireTable(
  *
  * \brief	Show the garage and wait for the player to choose something.
  *
- * \param	mode			GARAGE_KEEP, GARAGE_DRAW, GARAGE_WIPE_IN, or 3
- * 							after coming back from the street.
+ * \param	mode			GARAGE_KEEP, GARAGE_DRAW, GARAGE_WIPE_IN, or
+ * 							GARAGE_SWITCH_CAR after a car switch.
  *
  * \return	The number of the clicked hotspot of screen 10 (1 newspaper,
  * 			2 street, 3 calendar, 4 quit, 5 sell parts, 6 cars, 7 paint,
@@ -454,10 +453,11 @@ static uint16_t garage__tireTable(
  * \details	Port of FUN_1000_6b06. With a car in use, draws or scrolls the
  * 			car into the garage (cars_draw) and places the 5 hotspots on
  * 			its parts (garage__placeCarHotspots); without a car those 5
- * 			hotspots are switched off. The return from the street (mode 3
- * 			with DS:0x4f48 set) and the music (FUN_1f38_7001) are not
- * 			ported yet. The hotspots are sorted by their left edge, as
- * 			ui_hitTest needs them. A full garage (16 cars, or 131 parts
+ * 			hotspots are switched off. Mode GARAGE_SWITCH_CAR without a
+ * 			switched car (DS:0x4f48 zero) shows the message
+ * 			GARAGE_TEXT_NO_RACE. The music (FUN_1f38_7001) is not ported
+ * 			yet. The hotspots are sorted by their left edge, as ui_hitTest
+ * 			needs them. A full garage (16 cars, or 131 parts
  * 			and more) gives a warning, and a player with no car, no car in
  * 			store and less than 400 dollars is told that the game is over.
  *
@@ -524,9 +524,6 @@ int16_t garage_show(
 			exe_writeU16(GARAGE_SWITCHED_CAR, 0);
 			exe_writeU16(GARAGE_OLD_CAR, 0);
 			garage__draw(GARAGE_DRAW);
-		} else if (exe_readS16(GARAGE_RACE_DONE) != 0) {
-			plat_log("the return from the street is not ported yet");
-			garage__draw(GARAGE_WIPE_IN);
 		} else {
 			cursor_set(CURSOR_SHOW_NOW);
 			game_message(GARAGE_TEXT_NO_RACE);
