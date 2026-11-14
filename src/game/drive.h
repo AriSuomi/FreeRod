@@ -51,6 +51,10 @@
 
 int16_t drive_run(void);
 
+void drive_crashMark(
+	int16_t position
+);
+
 void drive_stopCar(
 	uint8_t flags
 );

@@ -10,8 +10,10 @@
  * 			needles (01d2, 0349, 0425), and the timer handler of a drive
  * 			(TimerIsr2 1000:238c with FUN_1000_1aad, 1b27, 2374), which
  * 			drives the player's car in a race. The road's state is
- * 			roadstate.c, its pictures roadpic.c; the sounds are not ported
- * 			yet: drive__notPorted stands in for each and logs it once.
+ * 			roadstate.c, its pictures roadpic.c, its view roadview.c; the
+ * 			sounds are not ported yet: drive__notPorted stands in for
+ * 			each and logs it once. FUN_1f38_1094 (drive_crashMark) draws
+ * 			the wheel's mark on the picture of a crash.
  *
  * 			Layout. On EGA the original splits the screen (line compare
  * 			register, FUN_31a0_0014): the instrument panel is at the start
@@ -84,6 +86,7 @@
 #define DRIVE_MARK_SHAPES  0x60a0 /**< DS: near pointer to count, shapes. */
 #define DRIVE_MARK_REACH   2	  /**< Pixels of the mark around its place. */
 #define DRIVE_MARK_SIZE	   5	  /**< Width and height of the mark. */
+#define DRIVE_CRASH_LAST   0xbe	  /**< Last row of the mark after a crash. */
 #define DRIVE_NO_MARK	   100	  /**< DS:0x82c2: no mark is shown. */
 #define DRIVE_SHAPE_SIZE   6	  /**< Shape: s16 spans, far pointer. */
 #define DRIVE_SPAN_SIZE	   4	  /**< Span: s8 column, row, length; color. */
@@ -1002,6 +1005,37 @@ static void drive__drawMark(
 		);
 		pSpan += DRIVE_SPAN_SIZE;
 	}
+}
+
+/** ****************************************************************************
+ *
+ * \brief	Draw the mark of the steering wheel on the crash picture.
+ *
+ * \param	position		Position of the steering wheel (DS:0x82c2).
+ *
+ * \details	Port of FUN_1f38_1094. The mark is drawn at its place on
+ * 			the panel (table DS:0x31e, DRIVE_PANEL_TOP rows down) of
+ * 			the work page (DS:0x787a: segment 0xa200 on EGA), cut to
+ * 			the rows DRIVE_PANEL_TOP..DRIVE_CRASH_LAST (DS:0x5e50,
+ * 			DS:0x5e52); the clip box is put back to the view's
+ * 			afterwards (roaddraw_clipView). The original cuts span by
+ * 			span; the port leaves out a mark that is not whole inside
+ * 			the rows, which no position of the wheel gives.
+ *
+ ******************************************************************************/
+void drive_crashMark(
+	int16_t position
+) {
+	const uint8_t * pPlace =
+		exe_data((uint16_t)(DRIVE_MARK_PLACES + position * 2));
+	int16_t top = (int16_t)(DRIVE_PANEL_TOP + pPlace[1]);
+
+	if (top - DRIVE_MARK_REACH >= DRIVE_PANEL_TOP &&
+		top + DRIVE_MARK_REACH <= DRIVE_CRASH_LAST) {
+		drive__drawMark(globals_workSurface, pPlace[0], top);
+	}
+
+	roaddraw_clipView();
 }
 
 /** ****************************************************************************

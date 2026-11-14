@@ -6,15 +6,13 @@
  *
  * \details	Port of FUN_1000_c613 and the functions it calls (FUN_1000_bed4,
  * 			bf94, c1d8, c497, c52c, c5ac, 4ffa, FUN_1f38_7728). The race
- * 			itself is driving (FUN_1000_d031 > 8e2d > FUN_1f38_7b22), which
- * 			is not ported: it leaves the outcome in DS:0x799c (lost,
- * 			crashed, broken parts, police, jumped the light) and DS:0x7a9e
- * 			(bit 0: won), the speed at the end in DS:0x78e0 and the times
- * 			in DS:0x8bc4, 0x7644 and 0x82c8. Until driving is ported, the
- * 			test option --race-result gives the outcome (race_standIn).
- * 			Not ported: the sounds (FUN_1f38_7841, 7863) and the car
- * 			drawn by the driving code on the crash picture
- * 			(FUN_1f38_1094).
+ * 			itself is driving (FUN_1000_d031 > 8e2d > FUN_1f38_7b22,
+ * 			driving.c and drive.c): it leaves the outcome in DS:0x799c
+ * 			(lost, crashed, broken parts, police, jumped the light) and
+ * 			DS:0x7a9e (bit 0: won), the speed at the end in DS:0x78e0 and
+ * 			the times in DS:0x8bc4, 0x7644 and 0x82c8. The test option
+ * 			--race-result replaces that outcome (race_testOutcome). Not
+ * 			ported: the sounds (FUN_1f38_7841, 7863).
  *
  ******************************************************************************/
 
@@ -34,6 +32,7 @@
 #include "dos/fpu.h"
 #include "game/cars.h"
 #include "game/cursor.h"
+#include "game/drive.h"
 #include "game/driving.h"
 #include "game/event.h"
 #include "game/exe.h"
@@ -90,7 +89,7 @@
 #define RACE_VIEW_SET	 0x7900	  /**< s16: unknown; if set ... */
 #define RACE_VIEW		 0x7904	  /**< s16: ... this becomes 1. */
 #define RACE_SIREN		 0x58dc	  /**< s16: set by FUN_1f38_7728. */
-#define RACE_CAR_VIEW	 0x82c2	  /**< s16: car FUN_1f38_1094 draws. */
+#define RACE_WHEEL		 0x82c2	  /**< s16: steering wheel's position. */
 #define RACE_UNKNOWN_254 0x254	  /**< s16: 0: crash picture 1 row lower. */
 #define RACE_SALE_FACTOR 0x6964	  /**< 8-byte real 0.4: sale factor. */
 #define RACE_PART_USE	 2		  /**< Part record: word that grows with \
@@ -348,18 +347,18 @@ static int8_t race__percents[STATE_PART_MAX + 1];
 
 /** ****************************************************************************
  *
- * \brief	Stand in for driving: give the outcome of the race.
+ * \brief	Replace the outcome of the race by the test outcome.
  *
  * \retval	true			An outcome was given with --race-result and is
  * 							in DS:0x799c, 0x7a9e and 0x78e0.
- * \retval	false			No outcome: the caller keeps the race out.
+ * \retval	false			None was given: the outcome driving left stays.
  *
- * \details	Not part of the original. While segment 3645 (the 3D road)
- * 			is not ported yet, --race-result overrides the race outcome
- * 			here for testing race_result.
+ * \details	Not part of the original: --race-result gives race_result
+ * 			an outcome to test without driving the race (drive__race
+ * 			ends such a race at "Go !").
  *
  ******************************************************************************/
-bool race_standIn(void) {
+bool race_testOutcome(void) {
 	if (race_testFlags == RACE_NO_TEST) {
 		return false;
 	}
@@ -1104,8 +1103,9 @@ static void race__drawClipped(
  * \details	Port of FUN_1000_c1d8. The scene is drawn in two parts, one
  * 			row apart on EGA when DS:0x254 is 0. Above 90 mph three more
  * 			pictures follow (table DS:0x53d4), 20, 12 and 4 retraces
- * 			apart. Not ported: the crash sound (FUN_1f38_7863) and the
- * 			car drawn by the driving code (FUN_1f38_1094, only logged).
+ * 			apart. The mark of the steering wheel is drawn on the panel
+ * 			of the first picture (drive_crashMark). Not ported: the
+ * 			crash sound (FUN_1f38_7863).
  *
  ******************************************************************************/
 static void race__crashPicture(void) {
@@ -1151,10 +1151,7 @@ static void race__crashPicture(void) {
 		(int16_t)(RACE_CRASH_BOTTOM_Y + tall),
 		true
 	);
-	plat_log(
-		"FUN_1f38_1094 (car %d of the driving code) is not ported yet",
-		exe_readS16(RACE_CAR_VIEW)
-	);
+	drive_crashMark(exe_readS16(RACE_WHEEL));
 	screen_copyToDisplay(0, 0, PLAT_WIDTH - 1, PLAT_HEIGHT - 1);
 
 	if (exe_readS16(RACE_SPEED) > RACE_FAST_CRASH) {

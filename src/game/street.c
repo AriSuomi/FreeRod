@@ -669,9 +669,9 @@ static void street__setHotspots(
 	int16_t			top = (int16_t)(pBoxes[STREET_BOX_1 + 1] + carTop);
 	int16_t			right = (int16_t)(pBoxes[STREET_BOX_1 + 2] + left - 1);
 	int16_t			bottom = (int16_t)(exe_readS16(
-										   (uint16_t)(street__element(0) + STREET_TOP)
-									   ) -
-									   1);
+								   (uint16_t)(street__element(0) + STREET_TOP)
+							   ) -
+							   1);
 
 	exe_writeU16((uint16_t)(car + STREET_LEFT), (uint16_t)left);
 	exe_writeU16((uint16_t)(car + STREET_RIGHT), (uint16_t)right);
@@ -1309,7 +1309,7 @@ static void street__drawCar(
  * 			opponent's counters (+0xc races, +0xd wins) change, except
  * 			after bet event 1. The car without a driver offers its road
  * 			race after the player won its drag race; winning that one
- * 			wins the game. With --race-result (race_standIn) the outcome
+ * 			wins the game. With --race-result (race_testOutcome) the outcome
  * 			is overridden after driving_run. After the result the colors
  * 			of the race are undone (driving_setRaceColors). Not ported:
  * 			the sound FUN_1f38_7001.
@@ -1329,7 +1329,7 @@ static int16_t street__challenge(void) {
 			exe_text(STREET_TEXT_RACE),
 			exe_readS16(STREET_STATUS_W)
 		);
-		race_standIn();
+		race_testOutcome();
 
 		int16_t result = race_result();
 		bool	won = exe_readS16(RACE_WON) != 0;

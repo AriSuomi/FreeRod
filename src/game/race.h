@@ -58,7 +58,7 @@ extern int16_t race_testSpeed;
 ;
 ;-----------------------------------------------------------------------------*/
 
-bool race_standIn(void);
+bool race_testOutcome(void);
 
 int16_t race_result(void);
 

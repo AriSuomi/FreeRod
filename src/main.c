@@ -40,8 +40,8 @@
  * 			--keys-at TICKS TEXT	type TEXT from that time on, one key per
  * 								pass; "<" is Backspace, "!" is Enter, "~"
  * 								waits 40 ticks
- * 			--race-result FLAGS SPEED	stands in for driving: the
- * 								outcome of every race (bits 0..7 for
+ * 			--race-result FLAGS SPEED	ends every race at "Go !" with
+ * 								this outcome (bits 0..7 for
  * 								DS:0x799c, 0x100 won) and the speed
  * 								at the end (mph); C notation (0x41)
  *
