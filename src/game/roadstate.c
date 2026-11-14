@@ -9,8 +9,7 @@
  * 			the mirror (FUN_3645_1e9e), the move to the next tile
  * 			(FUN_3645_1efc) and the check of the car against the
  * 			roadside (3645:206b). All arithmetic is 16-bit, as in the
- * 			original. Drawing the view (FUN_3645_4b8c) is not ported
- * 			yet (step 14o).
+ * 			original. The view is drawn by roadview.c (FUN_3645_4b8c).
  *
  ******************************************************************************/
 
@@ -31,6 +30,7 @@
 #include "game/random.h"
 #include "game/roaddraw.h"
 #include "game/road.h"
+#include "game/roadview.h"
 #include "platform/platform.h"
 
 /*******************************************************************************
@@ -137,12 +137,6 @@ static int16_t roadstate__aheadColumn(
 	int16_t turn
 );
 
-static int16_t roadstate__aheadRow(
-	int16_t distance,
-	int16_t worldY,
-	int16_t rise
-);
-
 static int16_t roadstate__behindColumn(
 	int16_t distance,
 	int16_t worldX,
@@ -197,9 +191,6 @@ roadstate_Rows roadstate_ahead;
  * 0x7f22 left, 0x865a right, 0x70c2 and 0x70d2 object lines).
  */
 roadstate_Rows roadstate_behind;
-
-/** The view (FUN_3645_4b8c) was logged as not ported. */
-static bool roadstate__viewLogged;
 
 /*******************************************************************************
 ;
@@ -667,7 +658,7 @@ static int16_t roadstate__aheadColumn(
  * \details	Port of FUN_3645_17b1.
  *
  ******************************************************************************/
-static int16_t roadstate__aheadRow(
+int16_t roadstate_aheadRow(
 	int16_t distance,
 	int16_t worldY,
 	int16_t rise
@@ -769,7 +760,7 @@ static void roadstate__projectAhead(
 
 	roadstate__edges(flags, &left, &right);
 	roadstate_ahead.road[row] =
-		roadstate__aheadRow(distance, ROADSTATE_GROUND, rise);
+		roadstate_aheadRow(distance, ROADSTATE_GROUND, rise);
 	roadstate_ahead.right[row] =
 		roadstate__aheadColumn(distance, right, turn);
 	roadstate_ahead.left[row] = roadstate__aheadColumn(distance, left, turn);
@@ -780,7 +771,7 @@ static void roadstate__projectAhead(
 
 	if (high) {
 		roadstate_ahead.eye[row] =
-			roadstate__aheadRow(distance, ROADSTATE_EYE_HEIGHT, rise);
+			roadstate_aheadRow(distance, ROADSTATE_EYE_HEIGHT, rise);
 	}
 }
 
@@ -889,8 +880,8 @@ static void roadstate__setUp(void) {
  * \brief	Project, draw and pace a frame of the road.
  *
  * \details	Port of FUN_3645_1e9e. The rows are projected
- * 			(roadstate__setUp), the view is drawn (FUN_3645_4b8c, not
- * 			ported yet: logged once) and the frame waits until 9 timer
+ * 			(roadstate__setUp), the view is drawn (roadview_draw,
+ * 			FUN_3645_4b8c) and the frame waits until 9 timer
  * 			ticks have passed since the projection.
  *
  ******************************************************************************/
@@ -899,10 +890,7 @@ static void roadstate__show(void) {
 
 	uint32_t until = globals_ticks + ROADSTATE_FRAME_TICKS;
 
-	if (!roadstate__viewLogged) {
-		roadstate__viewLogged = true;
-		plat_log("road: the view (FUN_3645_4b8c) is not ported yet");
-	}
+	roadview_draw();
 
 	while ((int32_t)(globals_ticks - until) < 0) {
 		dos_service();

@@ -242,6 +242,9 @@ static int			  plat__renderScale;  /**< Scene size / 320x200. */
  */
 static plat__Page plat__pages[PLAT_PAGE_COUNT];
 
+/** The source images of a copy (plat_blit), taken before it. */
+static plat__Draw plat__blitDraws[MAX_DRAWS];
+
 /**
  * The page that drawing functions change.
  */
@@ -626,8 +629,8 @@ void plat_copyRect(
  * \details	Copies the pixel layer and the visible parts of the images,
  * 			so replacement pictures stay pictures. Afterwards the rectangle
  * 			on the destination shows exactly what the source shows in its
- * 			rectangle. Both rectangles are clipped to the screen. Nothing
- * 			is copied within one page.
+ * 			rectangle. Both rectangles are clipped to the screen. Source
+ * 			and destination may be on one page, also overlapping.
  *
  ******************************************************************************/
 void plat_blit(
@@ -646,7 +649,7 @@ void plat_blit(
 	int		 shiftTop = top - sourceTop;
 	SDL_Rect area = { sourceLeft, sourceTop, width, height };
 
-	if (!valid || sourcePage == destinationPage) {
+	if (!valid) {
 		return;
 	}
 
@@ -663,20 +666,11 @@ void plat_blit(
 
 	plat__Page * pSource = &plat__pages[sourcePage];
 	plat__Page * pDestination = &plat__pages[destinationPage];
-
-	plat__dropCovered(pDestination, &area);
-
-	for (int row = area.y; row < area.y + area.h; row++) {
-		int output = row * PLAT_WIDTH + area.x;
-		int input = (row - shiftTop) * PLAT_WIDTH + area.x - shiftLeft;
-
-		memcpy(pDestination->pixels + output, pSource->pixels + input, area.w);
-	}
+	int			 copied = 0;
 
 	/*
-	 * Where the source pixels are transparent, the topmost source image
-	 * shows; adding the source images in their order after the older
-	 * destination images reproduces that.
+	 * The source images are taken first: within one page, dropping and
+	 * adding draws below would change the list being read.
 	 */
 	for (int index = 0; index < pSource->drawCount; index++) {
 		plat__Draw draw = pSource->draws[index];
@@ -687,8 +681,36 @@ void plat_blit(
 		draw.clip.y += shiftTop;
 
 		if (SDL_IntersectRect(&draw.clip, &area, &draw.clip)) {
-			plat__addDraw(pDestination, &draw);
+			plat__blitDraws[copied] = draw;
+			copied++;
 		}
+	}
+
+	plat__dropCovered(pDestination, &area);
+
+	/*
+	 * Rows moved down within one page are copied last row first, so
+	 * overlapping rectangles keep the source's content.
+	 */
+	for (int step = 0; step < area.h; step++) {
+		int row = shiftTop > 0 ? area.y + area.h - 1 - step : area.y + step;
+		int output = row * PLAT_WIDTH + area.x;
+		int input = (row - shiftTop) * PLAT_WIDTH + area.x - shiftLeft;
+
+		memmove(
+			pDestination->pixels + output,
+			pSource->pixels + input,
+			(size_t)area.w
+		);
+	}
+
+	/*
+	 * Where the source pixels are transparent, the topmost source image
+	 * shows; adding the source images in their order after the older
+	 * destination images reproduces that.
+	 */
+	for (int index = 0; index < copied; index++) {
+		plat__addDraw(pDestination, &plat__blitDraws[index]);
 	}
 }
 
