@@ -36,6 +36,7 @@
 #include "game/exe.h"
 #include "game/game.h"
 #include "game/globals.h"
+#include "game/road.h"
 #include "game/screen.h"
 #include "game/state.h"
 #include "game/text.h"
@@ -266,8 +267,7 @@ void save_scanSlots(
  * 			games) and copied to the display; without games screen 15
  * 			says so. The list is screen 3. After loading, the car paint
  * 			is set and the BIOS start time is moved back by the ticks
- * 			played. Not ported: FUN_3645_0b91(DS:0x5e0c), which builds
- * 			the road data of the driving part.
+ * 			played; the road is laid along the saved route.
  *
  ******************************************************************************/
 int16_t save_load(void) {
@@ -986,6 +986,7 @@ static bool save__read(
 		cars_setPaint((int8_t)*exe_data((uint16_t)(car + STATE_CAR_PAINT)));
 	}
 
+	road_build(exe_readS16(SAVE_ROAD_SEED));
 	globals_biosTicksAtStart = globals_biosTicks - played;
 
 	return true;

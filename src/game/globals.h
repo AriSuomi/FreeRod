@@ -60,6 +60,7 @@ extern int16_t globals_demoSwitch;
 extern int16_t globals_autoSwitch;
 extern int16_t globals_noUememSwitch;
 extern int16_t globals_machineSpeed;
+extern int16_t globals_slowMachine;
 
 /* Timer */
 

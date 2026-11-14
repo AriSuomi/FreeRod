@@ -33,6 +33,7 @@
 #include "game/paper.h"
 #include "game/question.h"
 #include "game/random.h"
+#include "game/road.h"
 #include "game/save.h"
 #include "game/screen.h"
 #include "game/state.h"
@@ -168,8 +169,8 @@ bool game_skipOpening;
  * 			the surface pointers and the EGA register writes of
  * 			FUN_1f38_0dbd, the music (FUN_1000_1a05, Phase 5), reading
  * 			resources into memory ahead of use (FUN_1f38_61ab,
- * 			FUN_1f38_6887, FUN_1f38_68ca) and FUN_3645_0d48 (tables for
- * 			the driving part, ported with it).
+ * 			FUN_1f38_6887, FUN_1f38_68ca). The road tables are made
+ * 			after the question (road_init).
  *
  ******************************************************************************/
 int16_t game_start(void) {
@@ -192,6 +193,7 @@ int16_t game_start(void) {
 		cursor_set(CURSOR_HIDE_NOW);
 	}
 
+	road_init();
 	exe_data(STATE_PLAYER_NAME)[0] = 0;
 	globals_demoMode = globals_demoSwitch;
 
@@ -681,8 +683,7 @@ static int16_t game__newGame(void) {
  *
  * \details	Port of FUN_1000_56a9: no cars and no parts, 750 dollars
  * 			(10000 in the demo), new classified ads, the game clock at 0.
- * 			Not ported: FUN_3645_0b91(100), which builds the road data of
- * 			the driving part (it comes with that part).
+ * 			A new route is laid for the road (road_build).
  *
  ******************************************************************************/
 void game_initNewGame(void) {
@@ -692,6 +693,7 @@ void game_initNewGame(void) {
 	game_initRecords(1);
 	exe_writeU32(STATE_MONEY, money);
 	exe_writeU16(STATE_UNKNOWN_AE, GAME_UNKNOWN_AE);
+	road_build(ROAD_NEW_ROUTE);
 	game__makeAds();
 	globals_gameTime = 0;
 	globals_biosTicksAtStart = globals_biosTicks;

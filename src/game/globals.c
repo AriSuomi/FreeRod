@@ -55,6 +55,13 @@ int16_t globals_noUememSwitch; /**< DS:0x280: nouemem switch. */
  */
 int16_t globals_machineSpeed = 4;
 
+/**
+ * DS:0x82c6: 1 on a slow machine (set with globals_machineSpeed): fewer
+ * things at the roadside, gentler bends, faster cruising. The port is a
+ * fast machine.
+ */
+int16_t globals_slowMachine;
+
 /* Timer */
 
 uint32_t globals_ticks;			 /**< DS:0x5f8: timer ticks, 72.8 Hz. */
