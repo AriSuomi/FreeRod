@@ -52,7 +52,7 @@
 #define PLAT_WIDTH		  320 /**< Screen width in game pixels. */
 #define PLAT_HEIGHT		  200 /**< Screen height in game pixels. */
 #define PLAT_TRANSPARENT  255 /**< Pixel-layer index that shows through. */
-#define PLAT_PAGE_COUNT	  10  /**< Pages of video memory; page 0 is shown. */
+#define PLAT_PAGE_COUNT	  11  /**< Pages of video memory; page 0 is shown. */
 
 #define PLAT_BUTTON_LEFT  1 /**< Left mouse button, or touching. */
 #define PLAT_BUTTON_RIGHT 2 /**< Right mouse button. */

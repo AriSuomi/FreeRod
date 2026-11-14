@@ -38,7 +38,6 @@
 ;
 ;-----------------------------------------------------------------------------*/
 
-#define ROADSTATE_TOWN		   0x0284 /**< s16: town of a cruise (1..3). */
 #define ROADSTATE_RIVAL_SIDE   0x54d4 /**< s16: opponent's side, 1. */
 #define ROADSTATE_SHOULDER	   0x5e0e /**< s16: 1 = on the shoulder. */
 #define ROADSTATE_DRIFT_RIGHT  0x5e10 /**< s16: cruise: drifting right. */
@@ -232,11 +231,11 @@ void roadstate_point(
  *
  * \details	Port of FUN_3645_2114 with FUN_3645_185d and FUN_3645_527a.
  * 			A race starts at tile 200, a cruise at the start tile of
- * 			its town (DS:0x284; any other value keeps the tile). The
- * 			car is on the wide road at X 0xa00, looking straight. Then
- * 			the opponent's position is cleared and the first frame is
- * 			made (FUN_3645_1e9e). FUN_3645_224e, which picks the page
- * 			to draw to, is not ported.
+ * 			its town (DS:0x284, globals_place; any other value keeps
+ * 			the tile). The car is on the wide road at X 0xa00, looking
+ * 			straight. Then the opponent's position is cleared and the
+ * 			first frame is made (FUN_3645_1e9e). FUN_3645_224e, which
+ * 			picks the page to draw to, is not ported.
  *
  ******************************************************************************/
 void roadstate_start(void) {
@@ -244,7 +243,7 @@ void roadstate_start(void) {
 	roadstate__write(ROADSTATE_DRIFT_RIGHT, 0);
 
 	if (*exe_data(ROADSTATE_RACING) == 0) {
-		switch (roadstate__read(ROADSTATE_TOWN)) {
+		switch (globals_place) {
 			case 1:
 				roadstate__write(ROADSTATE_TILE, 10);
 				break;

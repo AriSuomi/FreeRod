@@ -10,7 +10,7 @@
  * 			needles (01d2, 0349, 0425), and the timer handler of a drive
  * 			(TimerIsr2 1000:238c with FUN_1000_1aad, 1b27, 2374), which
  * 			drives the player's car in a race. The road's state is
- * 			roadstate.c; its pictures and the sounds are not ported
+ * 			roadstate.c, its pictures roadpic.c; the sounds are not ported
  * 			yet: drive__notPorted stands in for each and logs it once.
  *
  * 			Layout. On EGA the original splits the screen (line compare
@@ -43,6 +43,7 @@
 #include "game/race.h"
 #include "game/random.h"
 #include "game/road.h"
+#include "game/roadpic.h"
 #include "game/roadstate.h"
 #include "game/screen.h"
 #include "game/ui.h"
@@ -220,9 +221,8 @@
 
 /** What the port lacks; indexes of drive__missingNames. */
 typedef enum drive__missing_tag {
-	DRIVE__ROAD_SETUP, /**< FUN_3645_2429. */
-	DRIVE__NO_TACHO,   /**< FUN_1f38_05f2. */
-	DRIVE__SOUND_OFF,  /**< FUN_1f38_7001. */
+	DRIVE__NO_TACHO,  /**< FUN_1f38_05f2. */
+	DRIVE__SOUND_OFF, /**< FUN_1f38_7001. */
 	DRIVE__MISSING_COUNT
 } drive__Missing;
 
@@ -419,7 +419,6 @@ static int16_t drive__raceEnd(void);
 
 /** What drive__notPorted logs, by drive__Missing. */
 static const char * const drive__missingNames[DRIVE__MISSING_COUNT] = {
-	"the road's pictures (FUN_3645_2429)",
 	"FUN_1f38_05f2 (automatic, 8087 code)",
 	"stopping the sound (FUN_1f38_7001)",
 };
@@ -444,7 +443,7 @@ static bool drive__logged[DRIVE__MISSING_COUNT];
  * 			without a split screen (see the file's block). Both
  * 			surfaces become the screen and the palette is blanked.
  * 			The dashboard picture is drawn (drive__drawDashboard),
- * 			the road's pictures are loaded (not ported), the gear
+ * 			the road's pictures are loaded (roadpic_load), the gear
  * 			shift, the gear, the steering wheel and both needles are
  * 			drawn; with an automatic (DS:0x58e6) the tachometer is
  * 			left out. The road starts (roadstate_start).
@@ -476,7 +475,7 @@ int16_t drive_run(void) {
 	screen_resetSaved();
 	video_blankPalette();
 	drive__drawDashboard(display, view, automatic);
-	drive__notPorted(DRIVE__ROAD_SETUP);
+	roadpic_load(view);
 	drive__drawShifter(
 		display,
 		drive__playerWord(DRIVING_SHIFTING),
