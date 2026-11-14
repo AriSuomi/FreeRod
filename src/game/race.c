@@ -11,8 +11,7 @@
  * 			(lost, crashed, broken parts, police, jumped the light) and
  * 			DS:0x7a9e (bit 0: won), the speed at the end in DS:0x78e0 and
  * 			the times in DS:0x8bc4, 0x7644 and 0x82c8. The test option
- * 			--race-result replaces that outcome (race_testOutcome). Not
- * 			ported: the sounds (FUN_1f38_7841, 7863).
+ * 			--race-result replaces that outcome (race_testOutcome).
  *
  ******************************************************************************/
 
@@ -33,6 +32,7 @@
 #include "game/cars.h"
 #include "game/cursor.h"
 #include "game/drive.h"
+#include "game/effects.h"
 #include "game/driving.h"
 #include "game/event.h"
 #include "game/exe.h"
@@ -1104,8 +1104,8 @@ static void race__drawClipped(
  * 			row apart on EGA when DS:0x254 is 0. Above 90 mph three more
  * 			pictures follow (table DS:0x53d4), 20, 12 and 4 retraces
  * 			apart. The mark of the steering wheel is drawn on the panel
- * 			of the first picture (drive_crashMark). Not ported: the
- * 			crash sound (FUN_1f38_7863).
+ * 			of the first picture (drive_crashMark). The crash sounds
+ * 			first, while the road is still shown.
  *
  ******************************************************************************/
 static void race__crashPicture(void) {
@@ -1117,6 +1117,7 @@ static void race__crashPicture(void) {
 		(int16_t)lib_get(lib_indexFromGameId(RACE_CRASH_BOTTOM))->height;
 
 	tall = tall && exe_readS16(RACE_UNKNOWN_254) == 0;
+	effects_crash();
 	screen_resetSaved();
 	screen_drawSpritePart(
 		globals_workSurface,
@@ -1286,8 +1287,8 @@ static void race__printTime(
  *
  * \details	Port of FUN_1000_c52c. The engine, manifold and carburetors
  * 			are given back (the car's price drops by theirs) and the
- * 			engine's wear bytes (+0x16..0x1f) cleared. The sound
- * 			(FUN_1f38_7841) is not ported.
+ * 			engine's wear bytes (+0x16..0x1f) cleared. A burst of
+ * 			noise sounds (FUN_1f38_7841).
  *
  ******************************************************************************/
 static void race__engine(
@@ -1313,6 +1314,7 @@ static void race__engine(
 	}
 
 	input_flush();
+	effects_noise7841();
 	race__bubble(message);
 }
 
@@ -1324,8 +1326,8 @@ static void race__engine(
  *
  * \details	Port of FUN_1000_c5ac. The transmission is given back (the
  * 			car's price drops by its price) and its wear bytes
- * 			(+0x14..0x15) cleared. The sound (FUN_1f38_7841) is not
- * 			ported.
+ * 			(+0x14..0x15) cleared. A burst of noise sounds
+ * 			(FUN_1f38_7841).
  *
  ******************************************************************************/
 static void race__gearbox(
@@ -1343,6 +1345,7 @@ static void race__gearbox(
 	}
 
 	input_flush();
+	effects_noise7841();
 	race__bubble(message);
 }
 

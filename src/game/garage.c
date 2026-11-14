@@ -22,6 +22,7 @@
 #include "game/calendar.h"
 #include "game/cars.h"
 #include "game/cursor.h"
+#include "game/effects.h"
 #include "game/event.h"
 #include "game/exe.h"
 #include "game/game.h"
@@ -1689,6 +1690,7 @@ void garage_modifyBody(
 		(uint16_t)(STATE_TIRE_SPRITES + tires * 8)
 	);
 
+	effects_noise7841();
 	cursor_set(CURSOR_SHOW_NOW);
 	globals_gameTime += (uint32_t)timeCost;
 	ui_addMoney(-cost);
@@ -1986,8 +1988,7 @@ static void garage__drawBolt(
  * \param	bolt			Bolt, 0 or 1.
  *
  * \details	Port of FUN_1f38_31a5. The fall (frame 4 to row 0x94) is
- * 			only shown when drawing through. Not ported: its sound
- * 			(FUN_1f38_7973, Phase 5).
+ * 			only shown when drawing through, after the bolt's sound.
  *
  ******************************************************************************/
 static void garage__dropBolt(
@@ -2020,6 +2021,7 @@ static void garage__dropBolt(
 		GARAGE_BOLT_LEFT + GARAGE_BOLT_WIDTH - 1,
 		(int16_t)(top + GARAGE_BOLT_HEIGHT - 1)
 	);
+	effects_bolt();
 	cursor_set(CURSOR_HIDE_NOW);
 	screen_slide(
 		GARAGE_BOLTS,
@@ -2200,8 +2202,8 @@ static void garage__showGearbox(
  * 			the car's model (the low 4 bits of the model's word +4 and of
  * 			byte +3 of the part's table entry share a bit). One that does
  * 			not fit is shown aside with a message, and costs time. The
- * 			old transmission must be taken out first. Not ported: the
- * 			sounds (FUN_1f38_76da, FUN_1f38_7817, FUN_1f38_77e1).
+ * 			old transmission must be taken out first. A looping effect
+ * 			sounds while the new one moves in.
  *
  ******************************************************************************/
 static bool garage__changeGearbox(
@@ -2271,7 +2273,10 @@ static bool garage__changeGearbox(
 
 		cars_fitPart(cars_takeSparePart(part), slotAt);
 		cursor_set(CURSOR_HIDE_NOW);
+		effects_track76da(1);
 		garage__drawGearbox(picture, false);
+		effects_track76da(0);
+		effects_warble7817();
 		globals_gameTime += GARAGE_GEARBOX_TIME;
 
 		for (int bolt = GARAGE_BOLTS_PER_GEARBOX - 1; bolt >= 0; bolt--) {
@@ -2281,6 +2286,7 @@ static bool garage__changeGearbox(
 			pModes[bolt] = GARAGE_BOLT_TIGHTEN;
 			*exe_data((uint16_t)(carAt + STATE_CAR_WEAR + bolt)) = 1;
 			garage__drawBolt(1, bolt);
+			effects_warble77e1();
 			exe_writeU16(hotspot, GARAGE_TYPE_HOT);
 		}
 
@@ -2302,8 +2308,7 @@ static bool garage__changeGearbox(
  * \details	Part of FUN_1000_7aa4 (1000:7d47..7ed9). A missing bolt is
  * 			put in loose (1); a bolt being tightened turns up to 3, and
  * 			once tight the next clicks loosen it; at 1 it falls out. With
- * 			both bolts out the transmission goes to the spare parts. Not
- * 			ported: the sounds (FUN_1f38_77e1, FUN_1f38_7973).
+ * 			both bolts out the transmission goes to the spare parts.
  *
  ******************************************************************************/
 static void garage__turnBolt(
@@ -2320,9 +2325,11 @@ static void garage__turnBolt(
 			*pState = 0;
 			pModes[bolt] = GARAGE_BOLT_MISSING;
 			garage__dropBolt(bolt);
+			effects_warble77e1();
 			event_reset();
 		} else {
 			garage__drawBolt((int8_t)*pState, bolt);
+			effects_bolt();
 		}
 
 		if (pModes[0] == GARAGE_BOLT_MISSING &&
@@ -2345,6 +2352,7 @@ static void garage__turnBolt(
 		} else {
 			*pState = (uint8_t)(*pState + 1);
 			garage__drawBolt((int8_t)*pState, bolt);
+			effects_bolt();
 		}
 
 		return;
@@ -2353,6 +2361,7 @@ static void garage__turnBolt(
 	cursor_set(CURSOR_HIDE_NOW);
 	*pState = 1;
 	garage__drawBolt(1, bolt);
+	effects_warble77e1();
 	cursor_set(CURSOR_SHOW_NOW);
 	pModes[bolt] = GARAGE_BOLT_TIGHTEN;
 }
@@ -2866,7 +2875,7 @@ static void garage__freeFrames(
  * 			original's scene surfaces (DS:0x5ab0, DS:0x5ab4) hold the
  * 			garage, the jack and the car; the port puts them on the
  * 			scene page, with the other wheel copied from the display.
- * 			Not ported: the rolling sound (FUN_1f38_7548).
+ * 			A looping effect sounds while a tire rolls.
  *
  ******************************************************************************/
 static void garage__swapWheel(
@@ -2936,7 +2945,9 @@ static void garage__swapWheel(
 		-GARAGE_TIRE_ROLL,
 		0
 	);
+	effects_wheelSwap(1);
 	garage__runMover(GARAGE_ROLL_RETRACES, NULL);
+	effects_wheelSwap(0);
 	garage__freeFrames(plain, MOVER_FRAMES);
 	garage__freeFrames(rolling, MOVER_FRAMES);
 
@@ -2955,7 +2966,9 @@ static void garage__swapWheel(
 		GARAGE_TIRE_ROLL,
 		0
 	);
+	effects_wheelSwap(1);
 	garage__runMover(GARAGE_ROLL_RETRACES, NULL);
+	effects_wheelSwap(0);
 
 	int16_t turn = (int16_t)((wheel & 7) >> 1);
 
@@ -2986,8 +2999,9 @@ static void garage__swapWheel(
  * 			the display is copied to the work surface (video table
  * 			entry 5). The original's sprite surfaces, built for each
  * 			adapter, are the scene page in the port (SCREEN_SCENE_PAGE).
- * 			Not ported: the sounds (FUN_1f38_7001, FUN_1f38_7661) and the
- * 			sprite memory bookkeeping (FUN_1f38_a07e, a09e, a0b8).
+ * 			The music pauses and a looping effect sounds while the car
+ * 			moves. Not ported: the sprite memory bookkeeping
+ * 			(FUN_1f38_a07e, a09e, a0b8).
  *
  ******************************************************************************/
 static void garage__changeTires(
@@ -3091,6 +3105,7 @@ static void garage__changeTires(
 	mover_Frame withTires = tires.car;
 
 	withTires.image = cars_buildWithTires(model, flags, paint, oldTable);
+	effects_tireChange(1);
 	garage__moveCar(
 		&tires,
 		&withTires,
@@ -3100,12 +3115,14 @@ static void garage__changeTires(
 		0,
 		false
 	);
+	effects_tireChange(0);
 	garage__freeFrames(&withTires, 1);
 
 	garage__swapWheel(&tires, rear, front, oldTable, newTable);
 	garage__swapWheel(&tires, front, rear, oldTable, newTable);
 
 	withTires.image = cars_buildWithTires(model, flags, paint, newTable);
+	effects_tireChange(1);
 	garage__moveCar(
 		&tires,
 		&withTires,
@@ -3115,6 +3132,7 @@ static void garage__changeTires(
 		GARAGE_JACK_COUNT - 1,
 		true
 	);
+	effects_tireChange(0);
 	music_pause(0);
 
 	plat_copyRect(

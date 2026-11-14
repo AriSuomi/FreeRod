@@ -8,9 +8,9 @@
  * 			writes the divisor of each note to timer channel 2 and bends
  * 			it with a vibrato. The tracks, the repeat and instrument
  * 			lists and the vibrato tables are read from the image of
- * 			Sr.exe (docs/sound.md). Not ported yet: the second player
- * 			record (DS:0x79c6) for the looping effects (PlayEffectTrack,
- * 			1f38:6f0a).
+ * 			Sr.exe (docs/sound.md). A second player record (DS:0x79c6)
+ * 			plays the looping effects of game/effects.c in place of the
+ * 			music (music_playEffectTrack).
  *
  ******************************************************************************/
 
@@ -37,13 +37,8 @@
 ;
 ;-----------------------------------------------------------------------------*/
 
-/**
- * Segment of the music track as the game holds it (Ghidra shows 3e6b).
- */
-#define MUSIC_TRACK_SEGMENT	  0x2e6b
-
-#define MUSIC_REPEATS		  0x5858 /**< DS: repeat list of the music. */
 #define MUSIC_INSTRUMENTS	  0x5882 /**< DS: instrument list of the music. */
+#define MUSIC_EFFECT_LIST	  0x58cc /**< DS: instrument list of effects. */
 #define MUSIC_RECORDS		  0x5826 /**< DS: instrument records. */
 #define MUSIC_RECORD_SIZE	  10	 /**< Bytes of an instrument record. */
 #define MUSIC_VIBRATO		  0x57f6 /**< DS: vibrato table, rows of 8 words. */
@@ -57,6 +52,10 @@
 
 #define MUSIC_LOOP_START	  4	   /**< Offset where a track restarts. */
 #define MUSIC_DEPTH_UNIT	  1000 /**< Depth unit: 1/1000 of the divisor. */
+
+#define MUSIC_MODE_MUSIC	  1	   /**< globals_musicAvailable: the music. */
+#define MUSIC_MODE_EFFECT	  2	   /**< globals_musicAvailable: an effect. */
+#define MUSIC_NOT_SAVED		  (-1) /**< globals_musicSaved: nothing. */
 
 /** Port 61h bits that let the speaker sound. */
 #define MUSIC_SPEAKER_BITS (DOS_SPEAKER_GATE | DOS_SPEAKER_DATA)
@@ -124,6 +123,9 @@ static void music__nextNote(
 
 /** DS:0x79aa: the player of the music. */
 static music__Player music__music;
+
+/** DS:0x79c6: the player of the looping effects. */
+static music__Player music__effect;
 
 /** DS:0x58d2: the current player. */
 static music__Player * music__pPlayer = &music__music;
@@ -370,8 +372,9 @@ static void music__nextNote(
  *
  * \details	Part of InitTimerAndInput (1000:1111), which fills the record
  * 			at DS:0x79aa: stopped, track 3e6b:0000, repeat list
- * 			DS:0x5858, instrument list DS:0x5882. (It also sets the
- * 			lists of the effect player at DS:0x79c6, not ported yet.)
+ * 			DS:0x5858, instrument list DS:0x5882. It also sets the
+ * 			instrument list of the effect player at DS:0x79c6
+ * 			(DS:0x58cc).
  *
  ******************************************************************************/
 void music_init(void) {
@@ -384,6 +387,8 @@ void music_init(void) {
 	music__music.repeatAt = MUSIC_REPEATS;
 	music__music.instrumentList = MUSIC_INSTRUMENTS;
 	music__music.instrumentAt = MUSIC_INSTRUMENTS;
+	music__effect.instrumentList = MUSIC_EFFECT_LIST;
+	music__effect.instrumentAt = MUSIC_EFFECT_LIST;
 }
 
 /** ****************************************************************************
@@ -555,4 +560,96 @@ void music_pause(
 	}
 
 	globals_musicPaused = 0;
+}
+
+/** ****************************************************************************
+ *
+ * rief	Play a looping effect track in place of the music, or go back
+ * 			to the music.
+ *
+ * \param	offset			Offset of the track in its segment.
+ * \param	segment			Segment of the track (MUSIC_TRACK_SEGMENT: the
+ * 							music; MUSIC_EFFECT_SEGMENT: an effect).
+ * \param	repeatList		DS offset of the repeat list of the track.
+ *
+ * \details	Port of PlayEffectTrack (1f38:6f0a). An effect track goes to
+ * 			the effect player, which becomes the current one and starts
+ * 			at once; the music flag is saved and forced on meanwhile, so
+ * 			the effect also sounds with the music switched off, and the M
+ * 			key is locked. The music's own track switches back: the music
+ * 			flag is restored, the speaker goes off if the music is off,
+ * 			and the music player, which stood still meanwhile, is the
+ * 			current one again with its instrument and the vibrato on.
+ *
+ ******************************************************************************/
+void music_playEffectTrack(
+	uint16_t offset,
+	uint16_t segment,
+	uint16_t repeatList
+) {
+	if (offset == music__music.track && segment == music__music.segment) {
+		if (globals_musicSaved != MUSIC_NOT_SAVED) {
+			globals_musicOn = globals_musicSaved;
+			globals_musicSaved = MUSIC_NOT_SAVED;
+		}
+
+		if (globals_musicOn == 0) {
+			music__speakerOff();
+		}
+
+		globals_musicAvailable = MUSIC_MODE_MUSIC;
+		music__pPlayer = &music__music;
+		music__setInstrument(&music__music);
+		globals_vibratoOn = 1;
+
+		return;
+	}
+
+	if (globals_musicSaved == MUSIC_NOT_SAVED) {
+		globals_musicSaved = globals_musicOn;
+		globals_musicOn = 1;
+	}
+
+	globals_musicAvailable = MUSIC_MODE_EFFECT;
+	music__effect.segment = segment;
+	music__effect.track = offset;
+	music__effect.pattern = offset;
+	music__effect.position = offset;
+	music__effect.repeatList = repeatList;
+	music__effect.repeatAt = repeatList;
+	music__pPlayer = &music__effect;
+	music_startTrack(MUSIC_FIRST_WORD, 0);
+}
+
+/** ****************************************************************************
+ *
+ * rief	Set the vibrato of the effect track that was just started.
+ *
+ * \param	enable			Not 0: use the vibrato given here. 0: no vibrato.
+ * \param	row				Row of the vibrato table.
+ * \param	steps			Number of steps of the row that are used.
+ * \param	depth			Depth in 1/1000 of the divisor.
+ * \param	speed			Ticks per step.
+ *
+ * \details	Port of SetEffectVibrato (1f38:6fbd): fills instrument record
+ * 			0 (DS:0x5826), the one the effect player's instrument list
+ * 			names, and sets the vibrato switch.
+ *
+ ******************************************************************************/
+void music_setEffectVibrato(
+	int16_t enable,
+	int16_t row,
+	int16_t steps,
+	int16_t depth,
+	int16_t speed
+) {
+	if (enable != 0) {
+		exe_writeU16(MUSIC_RECORDS + MUSIC_RECORD_POSITION, 0);
+		exe_writeU16(MUSIC_RECORDS + MUSIC_RECORD_ROW, (uint16_t)row);
+		exe_writeU16(MUSIC_RECORDS + MUSIC_RECORD_DEPTH, (uint16_t)depth);
+		exe_writeU16(MUSIC_RECORDS + MUSIC_RECORD_STEPS, (uint16_t)steps);
+		exe_writeU16(MUSIC_RECORDS + MUSIC_RECORD_SPEED, (uint16_t)speed);
+	}
+
+	globals_vibratoOn = enable;
 }

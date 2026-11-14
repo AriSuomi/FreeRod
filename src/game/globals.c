@@ -170,6 +170,7 @@ int16_t globals_joystickDown;	 /**< DS:0x4728: Y above: down. */
 
 int16_t	 globals_musicOn = 1;	   /**< DS:0x58d0: 'M' toggles it. */
 int16_t	 globals_musicPaused;	   /**< DS:0x58d8: off by music_pause. */
+int16_t	 globals_musicSaved = -1;  /**< DS:0x58d6: flag kept by an effect. */
 int16_t	 globals_vibratoOn;		   /**< DS:0x72ec: vibrato enabled. */
 uint16_t globals_instrument;	   /**< DS:0x82c4: DS: instrument record. */
 int16_t	 globals_vibratoTicks = 1; /**< DS:0x6e2: ticks to the next step. */

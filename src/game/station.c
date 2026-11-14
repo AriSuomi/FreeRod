@@ -30,6 +30,7 @@
 #include "game/anim.h"
 #include "game/cars.h"
 #include "game/cursor.h"
+#include "game/effects.h"
 #include "game/event.h"
 #include "game/exe.h"
 #include "game/game.h"
@@ -266,8 +267,8 @@ static uint8_t station__maskPixels[STATION_PUMP_PIXELS];
  * 			the tank. Hanging up the nozzle after buying gas (or without
  * 			money) leaves (FUN_1000_b717). Animation 2 (the pump's meter)
  * 			runs while gas flows, animation 3 (the attendant getting up)
- * 			plays before full service. Not ported: FUN_1f38_7613 (the
- * 			pump's sound, started and stopped with animation 2).
+ * 			plays before full service. The pump's sound (effects_pump)
+ * 			starts and stops with animation 2.
  *
  ******************************************************************************/
 void station_visit(void) {
@@ -421,6 +422,7 @@ void station_visit(void) {
 
 				if (pVisit->hand == STATION_HAND_EMPTY) {
 					if (anim_isRunning(ANIM_GAS_METER)) {
+						effects_pump(0);
 						anim_stop(ANIM_GAS_METER);
 					}
 
@@ -449,6 +451,7 @@ void station_visit(void) {
 				pVisit->hand = STATION_HAND_EMPTY;
 				cursor_set(STATION_HAND_EMPTY);
 				anim_start(ANIM_GAS_METER);
+				effects_pump(1);
 				station__setHotspots(station__hotspotsPumping);
 				station__setTimeout(STATION_FILL_TICKS);
 				pVisit->pumping = true;
@@ -492,6 +495,7 @@ void station_visit(void) {
 					pVisit->hand = STATION_HAND_EMPTY;
 					cursor_set(STATION_HAND_EMPTY);
 					anim_start(ANIM_GAS_METER);
+					effects_pump(1);
 					pVisit->pumping = true;
 					station__setTimeout(STATION_FILL_TICKS);
 					break;
@@ -513,6 +517,7 @@ void station_visit(void) {
 
 				if (pVisit->fills == 0 || station__money() < pVisit->price) {
 					if (anim_isRunning(ANIM_GAS_METER)) {
+						effects_pump(0);
 						anim_stop(ANIM_GAS_METER);
 					}
 

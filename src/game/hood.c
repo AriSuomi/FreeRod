@@ -18,8 +18,7 @@
  * 			is, is unknown); it must show 0x446 before the engine comes
  * 			out. The original shifts sprites to their exact column
  * 			(FUN_1f38_acbf) because its surfaces have byte columns; the
- * 			port draws at any column. Not ported: the sounds
- * 			(FUN_1f38_76da, 77e1, 7817, 7973) and the temporary memory
+ * 			port draws at any column. Not ported: the temporary memory
  * 			bookkeeping (FUN_1f38_9fce, a07e, a09e, a0b8).
  *
  ******************************************************************************/
@@ -39,6 +38,7 @@
 #include "game/anim.h"
 #include "game/cars.h"
 #include "game/cursor.h"
+#include "game/effects.h"
 #include "game/event.h"
 #include "game/exe.h"
 #include "game/game.h"
@@ -667,6 +667,7 @@ static void hood__dropBolt(void) {
 			(int16_t)(column + shown),
 			(int16_t)(row + height)
 		);
+		effects_bolt();
 
 		if (shown == 16) {
 			column = (int16_t)(column + 8);
@@ -1401,6 +1402,7 @@ static void hood__turnBolt(
 			pWork->modes[bolt] = HOOD_BOLT_MISSING;
 			hood__boltPictures[bolt - 1] = 0;
 			hood__dropBolt();
+			effects_warble77e1();
 		} else {
 			int16_t picture = exe_readS16(
 				(uint16_t)(HOOD_BOLT_PICTURES + (int8_t)*pState * 2)
@@ -1408,6 +1410,7 @@ static void hood__turnBolt(
 
 			hood__boltPictures[bolt - 1] = picture;
 			hood__drawBolt(picture);
+			effects_bolt();
 		}
 
 		hood__takeOff(carAt, pWork, bolt);
@@ -1431,6 +1434,7 @@ static void hood__turnBolt(
 		hood__group = group;
 		hood__spot = spot;
 		hood__drawBolt(picture);
+		effects_bolt();
 
 		return;
 	}
@@ -1441,6 +1445,7 @@ static void hood__turnBolt(
 	hood__spot = spot;
 	hood__boltPictures[bolt - 1] = picture;
 	hood__drawBolt(picture);
+	effects_warble77e1();
 	pWork->modes[bolt] = HOOD_BOLT_TIGHTEN;
 	*pState = 1;
 }
@@ -1655,9 +1660,14 @@ static void hood__changePart(
 		hood__pictures[slot] = picture;
 
 		if (!fits) {
+			effects_track76da(1);
 			hood__drawPart(picture, true);
+			effects_track76da(0);
+			effects_warble7817();
 			game_message(HOOD_TEXT_NO_FIT);
+			effects_track76da(1);
 			hood__erasePart(picture);
+			effects_track76da(0);
 			hood__pictures[slot] = 0;
 
 			if (slot == 0) {
@@ -1673,7 +1683,10 @@ static void hood__changePart(
 			(uint16_t)(carAt + STATE_CAR_ENGINE + slot * 2)
 		);
 		cursor_set(CURSOR_HIDE_NOW);
+		effects_track76da(1);
 		hood__drawPart(picture, false);
+		effects_track76da(0);
+		effects_warble7817();
 
 		if (slot == 0) {
 			bool	 small = picture == HOOD_ENGINE_SMALL;
@@ -1699,6 +1712,7 @@ static void hood__changePart(
 			hood__spot = index;
 			hood__boltPictures[bolt] = loose;
 			hood__drawBolt(loose);
+			effects_warble77e1();
 			pWork->modes[bolt + 1] = HOOD_BOLT_TIGHTEN;
 			*exe_data((uint16_t)(carAt + HOOD_CAR_BOLT + 1 + bolt)) = 1;
 		}

@@ -35,6 +35,7 @@ add_executable(freerod
     src/game/opening.c
     src/game/paper.c
     src/game/question.c
+    src/game/effects.c
     src/game/music.c
     src/game/random.c
     src/game/road.c

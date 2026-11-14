@@ -27,6 +27,7 @@
 #include "dos/dos.h"
 #include "dos/fpu.h"
 #include "game/cursor.h"
+#include "game/effects.h"
 #include "game/exe.h"
 #include "game/globals.h"
 #include "game/lib.h"
@@ -2070,7 +2071,8 @@ void cars_drawForeground(
  *
  * \details	Port of FUN_1000_7367 (1000:728b..7340): a hand (resource
  * 			0x4c2) moves across the door 8 columns at a time, 2 frames
- * 			each, and the new door shows behind it.
+ * 			each, and the new door shows behind it, with a looping
+ * 			sound effect (StickerSound).
  *
  ******************************************************************************/
 void cars_applySticker(
@@ -2090,6 +2092,7 @@ void cars_applySticker(
 	int16_t screenTop = (int16_t)(carTop + doorTop);
 
 	cars__composeDoor(sticker, bodyWidth, bodyHeight, doorLeft, doorTop);
+	effects_sticker(1);
 
 	for (int step = 0; step < CARS_DOOR_WIDTH; step += CARS_WIPE_STEP) {
 		plat_selectPage(globals_workSurface);
@@ -2157,6 +2160,7 @@ void cars_applySticker(
 		visibleRows,
 		(int16_t)(carTop + bodyHeight - 1)
 	);
+	effects_sticker(0);
 }
 
 /** ****************************************************************************

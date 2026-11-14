@@ -28,6 +28,7 @@
 #include "dos/fpu.h"
 #include "game/cars.h"
 #include "game/drive.h"
+#include "game/effects.h"
 #include "game/exe.h"
 #include "game/globals.h"
 #include "game/random.h"
@@ -278,9 +279,6 @@ static uint16_t driving__gearRange(
 ;	D A T A
 ;
 ;-----------------------------------------------------------------------------*/
-
-/** True after driving__bumpSound logged once. */
-static bool driving__bumpLogged;
 
 /*******************************************************************************
 ;
@@ -1828,14 +1826,11 @@ static void driving__checkProximity(void) {
 
 /** ****************************************************************************
  *
- * \brief	Stand in for the bump sound effect (FUN_1f38_790f, Phase 5).
+ * \brief	Sound the bump of two cars (BumpSound, 1f38:790f).
  *
  ******************************************************************************/
 static void driving__bumpSound(void) {
-	if (!driving__bumpLogged) {
-		driving__bumpLogged = true;
-		plat_log("driving: FUN_1f38_790f (bump sound) is not ported yet");
-	}
+	effects_bump();
 }
 
 /** ****************************************************************************

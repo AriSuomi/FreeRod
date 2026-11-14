@@ -21,6 +21,7 @@
 #include <string.h>
 
 #include "game/cursor.h"
+#include "game/effects.h"
 #include "game/event.h"
 #include "game/exe.h"
 #include "game/globals.h"
@@ -1392,11 +1393,12 @@ void ui_statusGear(
  *
  * \brief	Sound the error beep.
  *
- * \details	Stands in for FUN_1f38_77ba, which plays a short tone on the
- * 			speaker when the sound is on (globals_soundOn). Phase 5.
+ * \details	ErrorBeep (1f38:77ba): a short tone on the speaker when the
+ * 			sound is on.
  *
  ******************************************************************************/
 static void ui__beep(void) {
+	effects_errorBeep();
 }
 
 /** ****************************************************************************

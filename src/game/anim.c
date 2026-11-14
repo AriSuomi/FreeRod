@@ -29,6 +29,7 @@
 
 #include "game/cars.h"
 #include "game/cursor.h"
+#include "game/effects.h"
 #include "game/event.h"
 #include "game/exe.h"
 #include "game/globals.h"
@@ -647,8 +648,8 @@ static void anim__showArea(
  * 			flashes; without, it flashes the meter's lines (the right
  * 			one on every step, the left one on every 4th) and ends the
  * 			animation when they are used up. Every other animation ends
- * 			at once. Not ported: the pump's sound (FUN_1f38_7613 with 1
- * 			at the start, 0 at the end; Phase 5).
+ * 			at once. The pump's sound starts with the flashes and ends
+ * 			with them.
  *
  ******************************************************************************/
 static int16_t anim__check(
@@ -661,6 +662,7 @@ static int16_t anim__check(
 
 	if (argument != 0) {
 		anim__meter = argument;
+		effects_pump(1);
 
 		return 0;
 	}
@@ -670,6 +672,8 @@ static int16_t anim__check(
 	anim__meter--;
 
 	if (left == 0) {
+		effects_pump(0);
+
 		return 1;
 	}
 
