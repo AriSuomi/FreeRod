@@ -9,10 +9,10 @@
  * 			from the farthest to the nearest with their ground
  * 			(roaddraw_ground), the objects at the roadside and
  * 			across the road (FUN_3645_3ccc) and in a race the
- * 			opponent's car (roadcar.c), the two pictures over the
- * 			view (FUN_3645_3e3c) and the start lights of a race
+ * 			opponent's car (roadcar.c), the mirror (FUN_3645_43fd with
+ * 			FUN_3645_3edb), the two pictures over the view
+ * 			(FUN_3645_3e3c) and the start lights of a race
  * 			(FUN_3645_3dc3); then the view is shown (roaddraw_show).
- * 			The mirror (FUN_3645_43fd, step 14q) is not ported yet.
  * 			All arithmetic is 16-bit, as in the original.
  *
  * 			The port takes the path of the adapters without a split
@@ -37,6 +37,7 @@
 
 #include "game/drive.h"
 #include "game/exe.h"
+#include "game/globals.h"
 #include "game/road.h"
 #include "game/roadcar.h"
 #include "game/roaddraw.h"
@@ -51,51 +52,69 @@
 ;
 ;-----------------------------------------------------------------------------*/
 
-#define ROADVIEW__CLIP_BOTTOM 0x5e52 /**< s16: clip box, bottom row. */
-#define ROADVIEW__LINE_WIDTHS 0x5e6a /**< s16 by row: center line width. */
-#define ROADVIEW__CREST		  0x6e04 /**< s16: highest road row on screen. */
-#define ROADVIEW__CREST_ROW	  0x6e06 /**< s16: row index where it is. */
-#define ROADVIEW__TILE		  0x7d30 /**< s16: tile of the player. */
-#define ROADVIEW__HEADING	  0x7d3c /**< s16: curve the view is turned to. */
-#define ROADVIEW__SLOPE		  0x7d3e /**< s16: slope at the player's tile. */
-#define ROADVIEW__RIVAL_TILE  0x7e8a /**< s16: tile of the opponent. */
-#define ROADVIEW__AUTO_MAY	  0x8228 /**< s16: set once "Go !" shows. */
-#define ROADVIEW__RACING	  0x8aca /**< s16: 1 in a race, 0 in a cruise. */
+#define ROADVIEW__CLIP_BOTTOM  0x5e52 /**< s16: clip box, bottom row. */
+#define ROADVIEW__LINE_WIDTHS  0x5e6a /**< s16 by row: center line width. */
+#define ROADVIEW__MIRROR_WIDTH 0x5e84 /**< s16 by mirror row: line width. */
+#define ROADVIEW__CREST		   0x6e04 /**< s16: highest road row on screen. */
+#define ROADVIEW__CREST_ROW	   0x6e06 /**< s16: row index where it is. */
+#define ROADVIEW__TILE		   0x7d30 /**< s16: tile of the player. */
+#define ROADVIEW__HEADING	   0x7d3c /**< s16: curve the view is turned to. */
+#define ROADVIEW__SLOPE		   0x7d3e /**< s16: slope at the player's tile. */
+#define ROADVIEW__RIVAL_TILE   0x7e8a /**< s16: tile of the opponent. */
+#define ROADVIEW__AUTO_MAY	   0x8228 /**< s16: set once "Go !" shows. */
+#define ROADVIEW__RACING	   0x8aca /**< s16: 1 in a race, 0 in a cruise. */
 
-#define ROADVIEW__FARTHEST	  14	 /**< Index of the farthest row. */
-#define ROADVIEW__OBJECT_ROWS 0xb	 /**< Rows below this draw objects. */
-#define ROADVIEW__TOP		  0x12	 /**< First row of the view. */
-#define ROADVIEW__SKY_TOP	  0x66	 /**< Row of the stored sky. */
-#define ROADVIEW__SKY_ROWS	  0x1d	 /**< Cruise: rows of sky copied. */
-#define ROADVIEW__SKY_END	  0x9a	 /**< Race: row after the sky's last. */
-#define ROADVIEW__SKY_ABOVE	  0x1e	 /**< Race: sky rows = horizon - this. */
-#define ROADVIEW__LAND_TOP	  0xa3	 /**< Row of the stored ground. */
-#define ROADVIEW__LAND_ROWS	  0x10	 /**< Cruise: rows of ground copied. */
-#define ROADVIEW__LAND_RACE	  0x14	 /**< Race: rows of ground copied. */
-#define ROADVIEW__LAND_AT	  0x2f	 /**< Cruise: row the ground goes to. */
-#define ROADVIEW__LAND_ABOVE  0xc	 /**< Race: ground starts this above. */
-#define ROADVIEW__FILL_AT	  0x3f	 /**< Cruise: first row filled. */
-#define ROADVIEW__FILL_BELOW  8		 /**< Race: fill starts this below. */
-#define ROADVIEW__FAR_AWAY	  0xf0	 /**< Distance of the race's horizon. */
-#define ROADVIEW__GROUND	  2000	 /**< Height of the road. */
-#define ROADVIEW__ROUND		  0xfff8 /**< Shifts are whole bytes. */
+#define ROADVIEW__FARTHEST	   14	  /**< Index of the farthest row. */
+#define ROADVIEW__OBJECT_ROWS  0xb	  /**< Rows below this draw objects. */
+#define ROADVIEW__MIRROR_ROWS  7	  /**< Rows drawn in the mirror. */
+#define ROADVIEW__MIRROR_NEAR  6	  /**< Mirror rows below draw objects. */
+#define ROADVIEW__MIRROR_SIZE  5	  /**< Added to a mirror row's index. */
+#define ROADVIEW__TOP		   0x12	  /**< First row of the view. */
+#define ROADVIEW__SKY_TOP	   0x66	  /**< Row of the stored sky. */
+#define ROADVIEW__SKY_ROWS	   0x1d	  /**< Cruise: rows of sky copied. */
+#define ROADVIEW__SKY_END	   0x9a	  /**< Race: row after the sky's last. */
+#define ROADVIEW__SKY_ABOVE	   0x1e	  /**< Race: sky rows = horizon - this. */
+#define ROADVIEW__LAND_TOP	   0xa3	  /**< Row of the stored ground. */
+#define ROADVIEW__LAND_ROWS	   0x10	  /**< Cruise: rows of ground copied. */
+#define ROADVIEW__LAND_RACE	   0x14	  /**< Race: rows of ground copied. */
+#define ROADVIEW__LAND_AT	   0x2f	  /**< Cruise: row the ground goes to. */
+#define ROADVIEW__LAND_ABOVE   0xc	  /**< Race: ground starts this above. */
+#define ROADVIEW__FILL_AT	   0x3f	  /**< Cruise: first row filled. */
+#define ROADVIEW__FILL_BELOW   8	  /**< Race: fill starts this below. */
+#define ROADVIEW__FAR_AWAY	   0xf0	  /**< Distance of the race's horizon. */
+#define ROADVIEW__GROUND	   2000	  /**< Height of the road. */
+#define ROADVIEW__ROUND		   0xfff8 /**< Shifts are whole bytes. */
 
-#define ROADVIEW__OVER_B_LEFT 0x58 /**< Column of picture 0x3ef. */
-#define ROADVIEW__OVER_B_TOP  0x5f /**< Row of picture 0x3ef. */
-#define ROADVIEW__LIGHT_WIDTH 0x18 /**< Width of a half of picture 0x3f5. */
-#define ROADVIEW__LIGHT_ROWS  0x20 /**< Height of picture 0x3f5. */
-#define ROADVIEW__LIGHT_LEFT  0x82 /**< Column it is drawn at. */
+#define ROADVIEW__MIRROR_LEFT  0xf0	 /**< Left column of the mirror. */
+#define ROADVIEW__BACK_ROWS	   2	 /**< Rows of picture 0x4db drawn. */
+#define ROADVIEW__FRAME_TOP	   0x17	 /**< First row of the mirror's lines. */
+#define ROADVIEW__FRAME_END	   0x2a	 /**< Last row of the mirror's lines. */
+#define ROADVIEW__FRAME_RIGHT  0x13f /**< Right column of the mirror. */
+#define ROADVIEW__SIDE_FROM_X  0xf8	 /**< Side mirror: column in the view. */
+#define ROADVIEW__SIDE_FROM_Y  0x16	 /**< Side mirror: row in the view. */
+#define ROADVIEW__SIDE_WIDTH   0x20	 /**< Side mirror: columns copied. */
+#define ROADVIEW__SIDE_TRIM	   6	 /**< Rows of 0x3f1 not copied to it. */
+#define ROADVIEW__SIDE_LEFT	   8	 /**< Side mirror: column on screen. */
+#define ROADVIEW__SIDE_TOP	   103	 /**< Side mirror: row on the screen. */
 
-#define ROADVIEW__CROSSING	  0x0001 /**< Road flag: crossing. */
-#define ROADVIEW__NOT_DRAWN	  0x0004 /**< Road flag: row not drawn. */
-#define ROADVIEW__ACROSS	  0xf000 /**< Road flags: across the road. */
-#define ROADVIEW__ACROSS_D	  0x1000 /**< Across: object 0xd. */
-#define ROADVIEW__ACROSS_1	  0x2000 /**< Across: strip picture 1. */
-#define ROADVIEW__ACROSS_C	  0x4000 /**< Across: object 0xc / strip 2. */
+#define ROADVIEW__OVER_B_LEFT  0x58 /**< Column of picture 0x3ef. */
+#define ROADVIEW__OVER_B_TOP   0x5f /**< Row of picture 0x3ef. */
+#define ROADVIEW__LIGHT_WIDTH  0x18 /**< Width of a half of picture 0x3f5. */
+#define ROADVIEW__LIGHT_ROWS   0x20 /**< Height of picture 0x3f5. */
+#define ROADVIEW__LIGHT_LEFT   0x82 /**< Column it is drawn at. */
 
-#define ROADVIEW__ROAD_COLOR  1	 /**< Cruise: fill below the ground. */
-#define ROADVIEW__RACE_COLOR  9	 /**< Race: fill below the crest. */
-#define ROADVIEW__BAR_COLOR	  10 /**< Posts and bar across the road. */
+#define ROADVIEW__CROSSING	   0x0001 /**< Road flag: crossing. */
+#define ROADVIEW__NOT_DRAWN	   0x0004 /**< Road flag: row not drawn. */
+#define ROADVIEW__ACROSS	   0xf000 /**< Road flags: across the road. */
+#define ROADVIEW__ACROSS_D	   0x1000 /**< Across: object 0xd. */
+#define ROADVIEW__ACROSS_1	   0x2000 /**< Across: strip picture 1. */
+#define ROADVIEW__ACROSS_C	   0x4000 /**< Across: object 0xc / strip 2. */
+
+#define ROADVIEW__ROAD_COLOR   1  /**< Cruise: fill below the ground. */
+#define ROADVIEW__RACE_COLOR   9  /**< Race: fill below the crest. */
+#define ROADVIEW__BAR_COLOR	   10 /**< Posts and bar across the road. */
+#define ROADVIEW__FRAME_OUTER  2  /**< Outer line of the mirror's frame. */
+#define ROADVIEW__FRAME_INNER  4  /**< Inner line of the mirror's frame. */
 
 /*******************************************************************************
 ;
@@ -154,6 +173,18 @@ static int16_t roadview__objects(
 	int16_t distance
 );
 
+static void roadview__mirrorBack(void);
+
+static void roadview__setMirrorRow(
+	int16_t distance
+);
+
+static void roadview__mirrorObjects(
+	int16_t distance
+);
+
+static void roadview__mirror(void);
+
 static void roadview__overlays(void);
 
 static void roadview__startLights(void);
@@ -174,9 +205,9 @@ static void roadview__startLights(void);
  * 			hill (DS:0x6e06) and, on the rows below 11 that are drawn
  * 			(road flag 4 clear), the objects. The original walks the
  * 			rows with the pointers of roaddraw_walk, one row nearer
- * 			each step; the port sets them from the row's index. Last
- * 			the pictures over the view, in a race the start lights,
- * 			and the view is shown.
+ * 			each step; the port sets them from the row's index. Then
+ * 			the mirror (roadview__mirror), the pictures over the view,
+ * 			in a race the start lights, and the view is shown.
  *
  * 			FUN_3645_2f48 reads a stack slot that holds this
  * 			function's SI (see docs/road.md, "Unset stack slots"): the
@@ -190,9 +221,6 @@ static void roadview__startLights(void);
  * 			after the row of its tile, or after all rows when it is
  * 			on the player's tile. The tiles are read once; in the
  * 			original nothing between the rows changes them.
- *
- * 			Not ported yet: the mirror (FUN_3645_43fd, before the
- * 			pictures; step 14q).
  *
  ******************************************************************************/
 void roadview_draw(void) {
@@ -227,6 +255,7 @@ void roadview_draw(void) {
 		roadcar_draw();
 	}
 
+	roadview__mirror();
 	roadview__overlays();
 
 	if (exe_readS16(ROADVIEW__RACING) != 0) {
@@ -793,6 +822,384 @@ static int16_t roadview__objects(
 	}
 
 	return kept;
+}
+
+/** ****************************************************************************
+ *
+ * \brief	Draw the mirror's picture and the two rows above its road.
+ *
+ * \details	Port of FUN_3645_3edb. Picture 0x3f1 (DS:0x8184) is copied
+ * 			whole to (0xf0, 0x12) on the view (video table entry 0,
+ * 			DS:0x78a2, plain copy), then the top 2 rows of 0x4db
+ * 			(DS:0x8b7e) to 2 rows above the farthest road row in the
+ * 			mirror (DS:0x8646), clipped to the clip box's rows.
+ *
+ ******************************************************************************/
+static void roadview__mirrorBack(void) {
+	const roadpic_Picture * pMirror = roadpic_set.pMirror;
+	const roadpic_Picture * pBack = roadpic_set.pMirrorBack;
+
+	if (pMirror != NULL && pMirror->width > 0 && pMirror->height > 0) {
+		screen_drawSpritePart(
+			roaddraw_view,
+			pMirror->gameId,
+			0,
+			0,
+			pMirror->width,
+			pMirror->height,
+			ROADVIEW__MIRROR_LEFT,
+			ROADVIEW__TOP,
+			true
+		);
+	}
+
+	if (pBack == NULL) {
+		return;
+	}
+
+	int16_t top = (int16_t)(roadstate_behind.road[ROADVIEW__MIRROR_ROWS] -
+							ROADVIEW__BACK_ROWS);
+
+	roaddraw_Rect rect = {
+		pBack->width, ROADVIEW__BACK_ROWS, 0, 0, ROADVIEW__MIRROR_LEFT, top
+	};
+
+	roaddraw_clipRows(&rect);
+
+	if (rect.width <= 0 || rect.height <= 0) {
+		return;
+	}
+
+	screen_drawSpritePart(
+		roaddraw_view,
+		pBack->gameId,
+		rect.sourceLeft,
+		rect.sourceTop,
+		rect.width,
+		rect.height,
+		rect.left,
+		rect.top,
+		true
+	);
+}
+
+/** ****************************************************************************
+ *
+ * \brief	Point the draw loops' pointers at a row in the mirror.
+ *
+ * \param	distance		Index of the row (1 nearest, 7 farthest).
+ *
+ * \details	Start of FUN_3645_43fd and the end of its loop: the row
+ * 			(DS:0x6e08..) and the one nearer (DS:0x6e10..) in
+ * 			roadstate_behind, the center line width from DS:0x5e92
+ * 			down and the flags of the tile distance + 1 tiles behind
+ * 			(from 8 behind to 2 behind).
+ *
+ ******************************************************************************/
+static void roadview__setMirrorRow(
+	int16_t distance
+) {
+	const roadstate_Rows * pRows = &roadstate_behind;
+	roaddraw_Row *		   pFar = &roaddraw_walk.farther;
+	roaddraw_Row *		   pNear = &roaddraw_walk.nearer;
+	int					   nearer = distance - 1;
+	int					   behind = distance + 1;
+
+	pFar->pLeft = &pRows->left[distance];
+	pFar->pRight = &pRows->right[distance];
+	pFar->pRoad = &pRows->road[distance];
+	pFar->pLeftLine = &pRows->leftLine[distance];
+	pFar->pRightLine = &pRows->rightLine[distance];
+	pFar->pEye = &pRows->eye[distance];
+
+	pNear->pLeft = &pRows->left[nearer];
+	pNear->pRight = &pRows->right[nearer];
+	pNear->pRoad = &pRows->road[nearer];
+	pNear->pLeftLine = &pRows->leftLine[nearer];
+	pNear->pRightLine = &pRows->rightLine[nearer];
+	pNear->pEye = &pRows->eye[nearer];
+
+	roaddraw_walk.lineWidth =
+		(uint16_t)(ROADVIEW__MIRROR_WIDTH + distance * 2);
+	roaddraw_walk.left = (uint16_t)(roadstate_cursor.left - behind);
+	roaddraw_walk.right = (uint16_t)(roadstate_cursor.right - behind);
+	roaddraw_walk.flags = (uint16_t)(roadstate_cursor.flags - behind);
+}
+
+/** ****************************************************************************
+ *
+ * \brief	Draw the roadside objects of a row in the mirror.
+ *
+ * \param	distance		Row index passed to the shapes (row + 5).
+ *
+ * \details	Part of FUN_3645_43fd for a row below 6 that is drawn: the
+ * 			same objects as ahead (roadview__objects), with row + 5 so
+ * 			that they are drawn at their smaller sizes, without the
+ * 			strip pictures of side flag 1 at a crossing, and with road
+ * 			flag 0x800 last instead of second among the four at the
+ * 			right edge.
+ *
+ ******************************************************************************/
+static void roadview__mirrorObjects(
+	int16_t distance
+) {
+	const roaddraw_Row * pFar = &roaddraw_walk.farther;
+
+	uint16_t flags = roadview__word(roaddraw_walk.flags);
+	uint16_t left = roadview__word(roaddraw_walk.left);
+	uint16_t right = roadview__word(roaddraw_walk.right);
+	bool	 crossing = (flags & ROADVIEW__CROSSING) != 0;
+	int16_t	 road = *pFar->pRoad;
+	int16_t	 leftEdge = *pFar->pLeft;
+	int16_t	 rightEdge = *pFar->pRight;
+	int16_t	 leftLine = *pFar->pLeftLine;
+	int16_t	 rightLine = *pFar->pRightLine;
+	int16_t	 column;
+
+	if ((left & 0x20) != 0) {
+		column = crossing ? leftEdge : leftLine;
+		roaddraw_object(column, road, distance, -1, 0);
+	}
+
+	if ((left & 0x100) != 0) {
+		if (crossing) {
+			column = leftEdge;
+		} else if ((left & 0x200) == 0) {
+			column = leftLine;
+		} else {
+			column = (int16_t)(leftLine * 2 - leftEdge);
+		}
+
+		roaddraw_object(column, road, distance, -1, 4);
+	}
+
+	if ((left & 0x800) != 0) {
+		roaddraw_object(leftEdge, road, distance, 1, 3);
+	}
+
+	if ((left & 0x1000) != 0) {
+		roaddraw_object(leftEdge, road, distance, 1, 6);
+	}
+
+	if (!crossing) {
+		if ((left & 1) != 0) {
+			roaddraw_object(leftEdge, road, distance, 1, 1);
+		}
+
+		if ((left & 4) != 0) {
+			roaddraw_object(leftEdge, road, distance, -1, 7);
+		}
+
+		if ((left & 8) != 0) {
+			roaddraw_object(leftEdge, road, distance, -1, 8);
+		}
+
+		if ((left & 0x40) != 0) {
+			int16_t half = (int16_t)((int16_t)(leftEdge - leftLine) >> 1);
+
+			column = (int16_t)(leftLine - half);
+			roaddraw_object(column, road, distance, -1, 10);
+		}
+
+		if ((left & 0x80) != 0) {
+			roaddraw_object(leftLine, road, distance, -1, 0xb);
+		}
+
+		if ((right & 1) != 0) {
+			roaddraw_object(rightEdge, road, distance, 1, 1);
+		}
+
+		if ((right & 4) != 0) {
+			roaddraw_object(rightEdge, road, distance, 1, 7);
+		}
+
+		if ((right & 8) != 0) {
+			roaddraw_object(rightEdge, road, distance, 1, 8);
+		}
+
+		if ((right & 0x40) != 0) {
+			roaddraw_object(rightLine, road, distance, 1, 10);
+		}
+
+		if ((right & 0x80) != 0) {
+			int16_t half = (int16_t)((int16_t)(rightLine - rightEdge) >> 1);
+
+			column = (int16_t)(half + rightLine);
+			roaddraw_object(column, road, distance, 1, 0xb);
+		}
+
+		if ((flags & 2) != 0) {
+			roaddraw_object(rightEdge, road, distance, 1, 9);
+		}
+	} else {
+		if ((left & 0x40) != 0) {
+			roaddraw_crossObject(leftEdge, road, distance, 1);
+		}
+
+		if ((right & 0x40) != 0) {
+			roaddraw_crossObject(rightEdge, road, distance, -1);
+		}
+	}
+
+	if ((right & 0x20) != 0) {
+		column = crossing ? rightEdge : rightLine;
+		roaddraw_object(column, road, distance, 1, 0);
+	}
+
+	if ((right & 0x100) != 0) {
+		if (crossing) {
+			column = rightEdge;
+		} else if ((right & 0x200) == 0) {
+			column = rightLine;
+		} else {
+			column = (int16_t)(rightLine * 2 - rightEdge);
+		}
+
+		roaddraw_object(column, road, distance, 1, 4);
+	}
+
+	if ((right & 0x2000) != 0) {
+		roaddraw_object(rightEdge, road, distance, 1, 0x12);
+	}
+
+	if ((right & 0x4000) != 0) {
+		roaddraw_object(rightEdge, road, distance, 1, 0x13);
+	}
+
+	if ((right & 0x800) != 0) {
+		roaddraw_object(rightEdge, road, distance, 1, 3);
+	}
+
+	if ((right & 0x1000) != 0) {
+		roaddraw_object(rightEdge, road, distance, -1, 6);
+	}
+
+	if ((flags & 0x100) != 0) {
+		roaddraw_object(rightEdge, road, distance, 1, 5);
+	}
+
+	if ((flags & 0x200) != 0) {
+		roaddraw_object(rightEdge, road, distance, 1, 0x10);
+	}
+
+	if ((flags & 0x400) != 0) {
+		roaddraw_object(rightEdge, road, distance, 1, 0x11);
+	}
+
+	if ((flags & 0x800) != 0) {
+		roaddraw_object(rightEdge, road, distance, 1, 0xf);
+	}
+}
+
+/** ****************************************************************************
+ *
+ * \brief	Draw the mirror and copy a piece of it to the side mirror.
+ *
+ * \details	Port of FUN_3645_43fd. The mirror's backdrop is drawn
+ * 			(roadview__mirrorBack) and the clip box is set to the
+ * 			mirror. Then the rows 7 to 1, farthest first: the ground
+ * 			(roaddraw_mirrorGround), on the rows that are drawn (road
+ * 			flag 4 clear) what stands across the road (clipping a
+ * 			strip at the left column too) and on those below 6 the
+ * 			roadside objects, and in a race the opponent's car when
+ * 			its tile is that many tiles behind. Then the clip box is
+ * 			set back to the view, the mirror's left and right frame
+ * 			lines are drawn at columns 0xf0, 0xf1, 0x13e and 0x13f,
+ * 			and 0x20 columns of the mirror from (0xf8, 0x16) are
+ * 			copied to the side mirror on the dashboard at (8, 103) of
+ * 			the display (DS:0x7678, row 100 + 3 on the adapters
+ * 			without a split screen).
+ *
+ ******************************************************************************/
+static void roadview__mirror(void) {
+	bool	racing = exe_readS16(ROADVIEW__RACING) != 0;
+	int16_t playerTile = exe_readS16(ROADVIEW__TILE);
+	int16_t rivalTile = exe_readS16(ROADVIEW__RIVAL_TILE);
+
+	roadview__setMirrorRow(ROADVIEW__MIRROR_ROWS);
+	roadview__mirrorBack();
+	roaddraw_clipMirror();
+
+	for (int16_t distance = ROADVIEW__MIRROR_ROWS; distance > 0; distance--) {
+		roadview__setMirrorRow(distance);
+		roaddraw_mirrorGround();
+
+		uint16_t flags = roadview__word(roaddraw_walk.flags);
+
+		if ((flags & ROADVIEW__NOT_DRAWN) == 0) {
+			int16_t sizeDistance = (int16_t)(distance + ROADVIEW__MIRROR_SIZE);
+
+			if ((flags & ROADVIEW__ACROSS) != 0) {
+				const roaddraw_Row * pFar = &roaddraw_walk.farther;
+
+				int16_t road = *pFar->pRoad;
+				int16_t above = (int16_t)(road - *pFar->pEye);
+				int16_t top = (int16_t)(road - (int16_t)(above * 4));
+
+				roadview__across(
+					*pFar->pLeft,
+					*pFar->pRight,
+					top,
+					road,
+					sizeDistance,
+					true,
+					(uint16_t)(flags & ROADVIEW__ACROSS)
+				);
+			}
+
+			if (distance < ROADVIEW__MIRROR_NEAR) {
+				roadview__mirrorObjects(sizeDistance);
+			}
+		}
+
+		if (racing && playerTile - rivalTile == distance) {
+			roadcar_draw();
+		}
+	}
+
+	roaddraw_clipView();
+	roaddraw_verticalLine(
+		ROADVIEW__FRAME_OUTER,
+		ROADVIEW__MIRROR_LEFT,
+		ROADVIEW__FRAME_TOP,
+		ROADVIEW__FRAME_END
+	);
+	roaddraw_verticalLine(
+		ROADVIEW__FRAME_INNER,
+		ROADVIEW__MIRROR_LEFT + 1,
+		ROADVIEW__FRAME_TOP,
+		ROADVIEW__FRAME_END
+	);
+	roaddraw_verticalLine(
+		ROADVIEW__FRAME_INNER,
+		ROADVIEW__FRAME_RIGHT - 1,
+		ROADVIEW__FRAME_TOP,
+		ROADVIEW__FRAME_END
+	);
+	roaddraw_verticalLine(
+		ROADVIEW__FRAME_OUTER,
+		ROADVIEW__FRAME_RIGHT,
+		ROADVIEW__FRAME_TOP,
+		ROADVIEW__FRAME_END
+	);
+
+	const roadpic_Picture * pMirror = roadpic_set.pMirror;
+	int16_t					height = pMirror != NULL
+						? (int16_t)(pMirror->height - ROADVIEW__SIDE_TRIM)
+						: 0;
+
+	if (height > 0) {
+		plat_blit(
+			roaddraw_view,
+			ROADVIEW__SIDE_FROM_X,
+			ROADVIEW__SIDE_FROM_Y,
+			globals_displaySurface,
+			ROADVIEW__SIDE_LEFT,
+			ROADVIEW__SIDE_TOP,
+			ROADVIEW__SIDE_WIDTH,
+			height
+		);
+	}
 }
 
 /** ****************************************************************************
