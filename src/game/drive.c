@@ -10,9 +10,9 @@
  * 			needles (01d2, 0349, 0425), and the timer handler of a drive
  * 			(TimerIsr2 1000:238c with FUN_1000_1aad, 1b27, 2374), which
  * 			drives the player's car in a race. The road's state is
- * 			roadstate.c, its pictures roadpic.c, its view roadview.c; the
- * 			engine and drive sounds are not ported yet (Phase 5).
- * 			FUN_1f38_1094 (drive_crashMark) draws
+ * 			roadstate.c, its pictures roadpic.c, its view roadview.c. The
+ * 			handler also makes the sounds of a drive on the speaker
+ * 			(engine, siren, squeal). FUN_1f38_1094 (drive_crashMark) draws
  * 			the wheel's mark on the picture of a crash.
  *
  * 			Layout. On EGA the original splits the screen (line compare
@@ -52,6 +52,7 @@
 #include "game/roadpic.h"
 #include "game/roadstate.h"
 #include "game/screen.h"
+#include "game/state.h"
 #include "game/ui.h"
 #include "game/video.h"
 #include "platform/platform.h"
@@ -192,16 +193,17 @@
 /*
  * The timer handler of a drive. Variables in the data segment image.
  */
-#define DRIVE_UNKNOWN_286  0x286  /**< s16: not 0, the car is not driven. */
 #define DRIVE_UNKNOWN_60A  0x60a  /**< s16: cleared with the handler. */
 #define DRIVE_STEP_WAIT	   0x609  /**< s8: BIOS ticks to the next step. */
 #define DRIVE_AUTO_SHIFTS  0x6ac  /**< s16: shifts of the automatic driver. */
+#define DRIVE_SIREN_STEP   0x6e4  /**< s16: step of the siren, 0..20. */
 #define DRIVE_OVER_REVS	   0x6e6  /**< s16: steps at the top revs. */
 #define DRIVE_STEP_BUSY	   0x6e8  /**< u8: a step is running. */
 #define DRIVE_BUTTON_WAS   0x6e9  /**< u8: buttons held at the last step. */
+#define DRIVE_SQUEAL_PHASE 0x6ea  /**< u8: 1 in the squeal's sounding half. */
 #define DRIVE_FORCED_BRAKE 0x54da /**< s16: steps the brake is held. */
-#define DRIVE_UNKNOWN_58DA 0x58da /**< s16: cleared with the handler. */
-#define DRIVE_UNKNOWN_58DC 0x58dc /**< s16: cleared with the handler. */
+#define DRIVE_SQUEAL	   0x58da /**< s16: the tires squeal. */
+#define DRIVE_SIREN		   0x58dc /**< s16: the siren sounds. */
 #define DRIVE_SLOWED	   0x5e0e /**< s16: not 0, the car slows to 8 mph. */
 #define DRIVE_CAR		   0x7eb0 /**< u16: DS offset of the player's car. */
 #define DRIVE_AUTO_FROM	   0x7e8a /**< s16: the automatic driver's start. */
@@ -210,6 +212,17 @@
 #define DRIVE_DISTANCE	   0x82bc /**< u32: sum of the speed at each step. */
 
 #define DRIVE_BIOS_EVERY   3	  /**< Countdown: BIOS tick every 4th tick. */
+#define DRIVE_START_TONE   0x1e	  /**< Divisor set with the handler. */
+#define DRIVE_SIREN_HIGH   0x54b  /**< Divisor of the siren: 880 Hz. */
+#define DRIVE_SIREN_LOW	   0x712  /**< Divisor of the siren: 660 Hz. */
+#define DRIVE_SIREN_TURN   10	  /**< Step at which the siren goes low. */
+#define DRIVE_SIREN_LAST   20	  /**< Last step of the siren. */
+#define DRIVE_SQUEAL_TONE  0x95	  /**< Divisor of the squeal: 8 kHz. */
+#define DRIVE_ENGINE_BASE  0xc350 /**< Divisor of an engine at 0 revs. */
+#define DRIVE_ENGINE_SHIFT 10	  /**< The squared revs are shifted by it. */
+#define DRIVE_ENGINE_TOP   10000  /**< Taken off the divisor at top revs. */
+#define DRIVE_SCROLL_BASE  0xea60 /**< Divisor of a car scrolled 0 pixels. */
+#define DRIVE_SCROLL_MOST  20000  /**< Most a scrolling car takes off it. */
 #define DRIVE_STEP_EVERY   3	  /**< A step every 3rd BIOS tick. */
 #define DRIVE_MOUSE_SHIFT  6	  /**< globals_mouseShiftY in a drive. */
 #define DRIVE_CAR_GEARBOX  6	  /**< Car: DS offset of the transmission. */
@@ -239,6 +252,9 @@
 #define DRIVE_BLOWN_ENGINE 0x05	  /**< Flags: the engine broke. */
 #define DRIVE_BLOWN_GEARS  0x11	  /**< Flags: the transmission broke. */
 #define DRIVE_CRASHED	   0x21	  /**< Flags: what FUN_3645_206b found. */
+
+/* Port 61h: the bits that switch the speaker on. */
+#define DRIVE_SPEAKER_BITS (DOS_SPEAKER_GATE | DOS_SPEAKER_DATA)
 
 /*******************************************************************************
 ;
@@ -395,9 +411,11 @@ static bool drive__needleMoved(
 	int16_t shown
 );
 
-static void drive__timerOn(void);
+static void drive__sound(
+	uint8_t countdown
+);
 
-static void drive__timerOff(void);
+static uint16_t drive__engineDivisor(void);
 
 static void drive__resetInput(
 	int16_t mouseShift
@@ -1549,7 +1567,7 @@ static int16_t drive__cruise(void) {
 
 	globals_leftClick = 0;
 	globals_buttonsHeld = 0;
-	drive__timerOff();
+	drive_timerOff();
 
 	return 1;
 }
@@ -1590,7 +1608,7 @@ static int16_t drive__race(void) {
 
 		case 1:
 			if (speed >= 1) {
-				drive__timerOff();
+				drive_timerOff();
 				*exe_data(DRIVE_FLAGS) |= DRIVE_JUMPED_LIGHT;
 
 				return 1;
@@ -1606,7 +1624,7 @@ static int16_t drive__race(void) {
 
 		case 2:
 			if (race_testFlags != RACE_NO_TEST) {
-				drive__timerOff();
+				drive_timerOff();
 
 				return 1;
 			}
@@ -1615,7 +1633,7 @@ static int16_t drive__race(void) {
 
 			if (exe_readU16(DRIVE_FLAGS) != 0 ||
 				exe_readU16(DRIVE_WON_FLAGS) != 0) {
-				drive__timerOff();
+				drive_timerOff();
 
 				return 1;
 			}
@@ -1630,7 +1648,7 @@ static int16_t drive__race(void) {
 		case 3:
 			if (exe_readU16(DRIVE_FLAGS) != 0 ||
 				exe_readU16(DRIVE_WON_FLAGS) != 0) {
-				drive__timerOff();
+				drive_timerOff();
 
 				return 1;
 			}
@@ -1655,7 +1673,7 @@ static int16_t drive__race(void) {
  * \details	The start both halves of FUN_1000_8ea8 share: DS:0x5d6 is
  * 			cleared, the sound is stopped unless the car drives home
  * 			after a race (DS:0x51ec; music_pause), the
- * 			timer handler of a drive is installed (drive__timerOn),
+ * 			timer handler of a drive is installed (drive_timerOn),
  * 			waiting input is dropped, DS:0x79a6 becomes 1 and the text
  * 			is shown.
  *
@@ -1669,7 +1687,7 @@ static void drive__begin(
 		music_pause(1);
 	}
 
-	drive__timerOn();
+	drive_timerOn();
 	input_flush();
 	exe_writeU16(DRIVE_STATE, 1);
 	ui_status(-1, exe_text(textAt), 0);
@@ -1740,19 +1758,22 @@ static bool drive__needleMoved(
  * 			takes the place of input_timerInterrupt, the mouse's rows are
  * 			divided by 64 (drive__resetInput), the steering of the
  * 			player's record (+2, +4) and the wait for the first step
- * 			(DS:0x609) are cleared. The original also sets up the speaker
- * 			(not ported; DS:0x47cf says it is on).
+ * 			(DS:0x609) are cleared. The speaker gets the divisor 0x1e and,
+ * 			if the sound is on, is switched on (DS:0x47cf). DrawCar
+ * 			(1f38:8e48) calls it too, for a car that scrolls.
  *
  ******************************************************************************/
-static void drive__timerOn(void) {
+void drive_timerOn(void) {
 	exe_writeU16(DRIVE_UNKNOWN_60A, 0);
 	dos_setTimerHandler(drive__timerInterrupt);
 	drive__resetInput(DRIVE_MOUSE_SHIFT);
 	drive__setPlayerWord(DRIVING_WHEEL, 0);
 	drive__setPlayerWord(DRIVING_STEERING, 0);
 	*exe_data(DRIVE_STEP_WAIT) = 0;
+	dos_setSpeakerDivisor(DRIVE_START_TONE);
 
 	if (globals_soundOn != 0) {
+		dos_setSpeakerPort((uint8_t)(dos_speakerPort() | DRIVE_SPEAKER_BITS));
 		globals_speakerOn = 1;
 	}
 }
@@ -1766,11 +1787,12 @@ static void drive__timerOn(void) {
  * 			gets its usual steps back (drive__resetInput).
  *
  ******************************************************************************/
-static void drive__timerOff(void) {
+void drive_timerOff(void) {
 	dos_setTimerHandler(input_timerInterrupt);
-	exe_writeU16(DRIVE_UNKNOWN_58DC, 0);
-	exe_writeU16(DRIVE_UNKNOWN_58DA, 0);
+	exe_writeU16(DRIVE_SIREN, 0);
+	exe_writeU16(DRIVE_SQUEAL, 0);
 	exe_writeU16(DRIVE_SLOWED, 0);
+	dos_setSpeakerPort((uint8_t)(dos_speakerPort() & ~DRIVE_SPEAKER_BITS));
 	globals_speakerOn = 0;
 	drive__resetInput(1);
 }
@@ -1803,15 +1825,15 @@ static void drive__resetInput(
 
 /** ****************************************************************************
  *
- * \brief	Timer interrupt handler of a drive: count a tick and, in a
- * 			race, drive the player's car.
+ * \brief	Timer interrupt handler of a drive: count a tick, make the
+ * 			sound and, in a race, drive the player's car.
  *
  * \details	Port of TimerIsr2 (1000:238c), run 72.8 times a second. Every
  * 			4th tick the original called the BIOS handler; every 3rd of
  * 			those (DS:0x609; 6.07 times a second), in a race (DS:0x8aca)
  * 			with DS:0x286 at 0, the car is driven (drive__driveCar)
- * 			unless that is still running (DS:0x6e8). Not ported: the
- * 			sound of the engine on the speaker, made in the other ticks.
+ * 			unless that is still running (DS:0x6e8). The other ticks
+ * 			make the sound (drive__sound).
  *
  ******************************************************************************/
 static void drive__timerInterrupt(void) {
@@ -1821,6 +1843,8 @@ static void drive__timerInterrupt(void) {
 	globals_biosCountdown--;
 
 	if (countdown != 0) {
+		drive__sound(globals_biosCountdown);
+
 		return;
 	}
 
@@ -1828,7 +1852,7 @@ static void drive__timerInterrupt(void) {
 	globals_biosCountdown = DRIVE_BIOS_EVERY;
 	globals_biosTicks++;
 
-	if (*exe_data(DRIVE_RACING) == 0 || exe_readS16(DRIVE_UNKNOWN_286) != 0) {
+	if (*exe_data(DRIVE_RACING) == 0 || exe_readS16(DRIVE_NOT_DRIVEN) != 0) {
 		return;
 	}
 
@@ -1849,6 +1873,126 @@ static void drive__timerInterrupt(void) {
 	*exe_data(DRIVE_STEP_BUSY) = 1;
 	drive__driveCar();
 	*exe_data(DRIVE_STEP_BUSY) = 0;
+}
+
+/** ****************************************************************************
+ *
+ * \brief	Make the sound of a drive for a tick of the timer handler.
+ *
+ * \param	countdown		Ticks left to the next BIOS tick (2, 1 or 0).
+ *
+ * \details	Part of TimerIsr2 (1000:23a7..2451). With the sound off
+ * 			(DS:0x47ce) the speaker is switched off; else it is switched
+ * 			on when it is not. At an even countdown DS:0x6ea toggles, and
+ * 			the siren (DS:0x58dc) sounds 880 Hz for the steps 0..9 of
+ * 			DS:0x6e4 and 660 Hz for 10..20; without it, squealing tires
+ * 			(DS:0x58da) or the shoulder (DS:0x5e0e) give 8 kHz while
+ * 			DS:0x6ea is set, and the engine's tone stays in the other
+ * 			half. At an odd countdown the engine sounds
+ * 			(drive__engineDivisor); for a car that DrawCar scrolls
+ * 			(DS:0x286, DS:0x5a0e) the divisor is 60000 less half the
+ * 			square of the distance between its place (DS:0x825e) and where
+ * 			it is drawn (DS:0x8b7c), at most 20000 (a 16-bit product).
+ *
+ ******************************************************************************/
+static void drive__sound(
+	uint8_t countdown
+) {
+	uint16_t divisor;
+
+	if (globals_soundOn == 0) {
+		if (globals_speakerOn != 0) {
+			dos_setSpeakerPort(
+				(uint8_t)(dos_speakerPort() & ~DRIVE_SPEAKER_BITS)
+			);
+			globals_speakerOn = 0;
+		}
+
+		return;
+	}
+
+	if (globals_soundOn != globals_speakerOn) {
+		dos_setSpeakerPort((uint8_t)(dos_speakerPort() | DRIVE_SPEAKER_BITS));
+		globals_speakerOn = 1;
+	}
+
+	if ((countdown & 1) == 0) {
+		uint8_t * pPhase = exe_data(DRIVE_SQUEAL_PHASE);
+
+		*pPhase ^= 1;
+
+		if (exe_readS16(DRIVE_SIREN) != 0) {
+			int16_t step = exe_readS16(DRIVE_SIREN_STEP);
+
+			divisor = step < DRIVE_SIREN_TURN ? DRIVE_SIREN_HIGH
+											  : DRIVE_SIREN_LOW;
+			step++;
+
+			if (step > DRIVE_SIREN_LAST) {
+				step = 0;
+			}
+
+			exe_writeU16(DRIVE_SIREN_STEP, (uint16_t)step);
+		} else if ((exe_readS16(DRIVE_SQUEAL) != 0 ||
+					exe_readS16(DRIVE_SLOWED) != 0) &&
+				   *pPhase != 0) {
+			divisor = DRIVE_SQUEAL_TONE;
+		} else {
+			return;
+		}
+	} else if (exe_readS16(DRIVE_NOT_DRIVEN) == 0) {
+		divisor = drive__engineDivisor();
+	} else {
+		if (exe_readS16(DRIVE_SCROLL_SOUND) == 0) {
+			return;
+		}
+
+		int16_t gap = (int16_t)(exe_readS16(STATE_CAR_LEFT) -
+								exe_readS16(STATE_CAR_SCROLL_X));
+
+		if (gap < 0) {
+			gap = (int16_t)-gap;
+		}
+
+		uint16_t distance = (uint16_t)gap;
+		uint16_t less = (uint16_t)((uint16_t)(distance >> 1) * distance);
+
+		if (less > DRIVE_SCROLL_MOST) {
+			less = DRIVE_SCROLL_MOST;
+		}
+
+		divisor = (uint16_t)(DRIVE_SCROLL_BASE - less);
+	}
+
+	dos_setSpeakerDivisor(divisor);
+}
+
+/** ****************************************************************************
+ *
+ * \brief	Work out the divisor of the engine's tone from its revs.
+ *
+ * \return	The divisor for the speaker's timer.
+ *
+ * \details	Part of TimerIsr2 (1000:2404..2440). The square of the revs
+ * 			(record +0xe) is shifted right by 10 and cut to 16 bits; to
+ * 			roughen the tone, that value shifted right by its own low
+ * 			byte + 2 and by 3 more is added. The divisor is 50000 less the
+ * 			sum, and 10000 less at the top revs: 25 Hz when idling (1500
+ * 			revs), 65 Hz just below the top, 145 Hz at the top. The shift
+ * 			count is cut to its low 5 bits as a 286 and later do it (an
+ * 			8086 takes all 8 bits, which adds nothing above 15).
+ *
+ ******************************************************************************/
+static uint16_t drive__engineDivisor(void) {
+	int16_t	 revs = drive__playerWord(DRIVING_REVS);
+	uint16_t tone = (uint16_t)(((int32_t)revs * revs) >> DRIVE_ENGINE_SHIFT);
+	uint8_t	 count = (uint8_t)((uint8_t)(tone + 2) & 0x1f);
+	uint16_t rough = (uint16_t)((uint16_t)((uint32_t)tone >> count) >> 3);
+	uint16_t top = revs == DRIVE_TOP_REVS ? DRIVE_ENGINE_TOP : 0;
+
+	tone = (uint16_t)(tone + rough);
+
+	return (uint16_t)(DRIVE_ENGINE_BASE - (uint16_t)(top + tone));
 }
 
 /** ****************************************************************************

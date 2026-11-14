@@ -33,8 +33,10 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 
+#include "dos/dos.h"
 #include "game/anim.h"
 #include "game/cars.h"
 #include "game/cursor.h"
@@ -75,6 +77,8 @@
 #define HOOD_TUNE_TIME_MAX	  0x444	 /**< Clock ticks tuning costs at most. */
 #define HOOD_TUNE_TIME_FACTOR 3		 /**< Clock ticks per BIOS tick tuned. */
 #define HOOD_MUSIC_TUNING	  2		 /**< globals_musicAvailable meanwhile. */
+#define HOOD_TUNE_TONE		  30000	 /**< Speaker divisor at setting 0. */
+#define HOOD_TUNE_TONE_STEP	  0x400	 /**< Added to it per step of setting. */
 #define HOOD_RANDOM_RANGE	  13	 /**< Byte +0x20 becomes 0..12 - 8. */
 #define HOOD_RANDOM_OFFSET	  8		 /**< Subtracted from the random value. */
 #define HOOD_BAY			  0x42d	 /**< Resource of the empty engine bay. */
@@ -143,6 +147,9 @@
 #define HOOD_PARTS_USE		  -3	 /**< Screen 4 result: the selection. */
 #define HOOD_PARTS_LIST		  0x49e0 /**< DS: list count and items. */
 #define HOOD_PART_FITS		  3		 /**< Parts table: makes it fits. */
+
+/* Port 61h: the bits that switch the speaker on. */
+#define HOOD_SPEAKER_BITS (DOS_SPEAKER_GATE | DOS_SPEAKER_DATA)
 
 /*
  * Tables in the data segment.
@@ -281,6 +288,8 @@ static void hood__insertElement(
 );
 
 static void hood__placeHotspots(void);
+
+static void hood__speakerOn(void);
 
 static void hood__tune(
 	uint16_t carAt
@@ -1171,6 +1180,22 @@ static void hood__placeHotspots(void) {
 
 /** ****************************************************************************
  *
+ * \brief	Switch the speaker on when the sound is on and it is off.
+ *
+ * \details	Part of FUN_1000_7fb1 (1000:8032 and 80c6), which repeats it
+ * 			for every setting and while it waits, so that the sound
+ * 			comes back when Ctrl switches it on again.
+ *
+ ******************************************************************************/
+static void hood__speakerOn(void) {
+	if (globals_soundOn != 0 && globals_soundOn != globals_speakerOn) {
+		dos_setSpeakerPort((uint8_t)(dos_speakerPort() | HOOD_SPEAKER_BITS));
+		globals_speakerOn = 1;
+	}
+}
+
+/** ****************************************************************************
+ *
  * \brief	Tune the engine on the gauge.
  *
  * \param	carAt			DS offset of the car record.
@@ -1181,11 +1206,10 @@ static void hood__placeHotspots(void) {
  * 			between -8 and 4. The time spent costs 3 clock ticks per
  * 			BIOS tick, at most 0x444. Animation 8 (columns of 0x433 at
  * 			(0xa0, 0x34), whose first step loads the image the original
- * 			takes the needle from) runs while the gauge is open. Not
- * 			ported: the music
- * 			stopped and started again (FUN_1000_0d99, 0dd8), and the
- * 			engine sound on the PC speaker (its pitch follows the
- * 			setting).
+ * 			takes the needle from) runs while the gauge is open. The
+ * 			music stops meanwhile (StopPlayer, ResumePlayer) and the
+ * 			engine sounds on the speaker (hood__speakerOn), with the
+ * 			divisor 30000 + 0x400 * the setting without its sign.
  *
  ******************************************************************************/
 static void hood__tune(
@@ -1201,9 +1225,19 @@ static void hood__tune(
 	music_stop();
 	globals_musicAvailable = HOOD_MUSIC_TUNING;
 
+	if (globals_soundOn != 0) {
+		dos_setSpeakerPort((uint8_t)(dos_speakerPort() | HOOD_SPEAKER_BITS));
+		globals_speakerOn = 1;
+	}
+
 	do {
 		int16_t setting = (int8_t)*pTuned;
 		int16_t row = (int16_t)(setting * 2 + 0x4b);
+
+		hood__speakerOn();
+		dos_setSpeakerDivisor(
+			(uint16_t)(abs(setting) * HOOD_TUNE_TONE_STEP + HOOD_TUNE_TONE)
+		);
 
 		cursor_set(CURSOR_HIDE_NOW);
 		screen_drawSpritePart(
@@ -1220,9 +1254,15 @@ static void hood__tune(
 		screen_copyToDisplay(0xb0, row, 0xb7, (int16_t)(setting * 2 + 0x55));
 		cursor_set(CURSOR_SHOW_NOW);
 
-		do {
+		for (;;) {
 			choice = event_wait(0);
-		} while (choice == 0);
+
+			if (choice != 0) {
+				break;
+			}
+
+			hood__speakerOn();
+		}
 
 		if (choice == HOOD_TUNE_UP) {
 			*pTuned = (uint8_t)(*pTuned + 1);
@@ -1239,6 +1279,8 @@ static void hood__tune(
 		}
 	} while (choice != HOOD_TUNE_DONE);
 
+	dos_setSpeakerPort((uint8_t)(dos_speakerPort() & ~HOOD_SPEAKER_BITS));
+	globals_speakerOn = 0;
 	globals_musicAvailable = 1;
 	music_resume();
 	anim_stop(ANIM_GAUGE);

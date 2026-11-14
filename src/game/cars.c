@@ -27,6 +27,7 @@
 #include "dos/dos.h"
 #include "dos/fpu.h"
 #include "game/cursor.h"
+#include "game/drive.h"
 #include "game/effects.h"
 #include "game/exe.h"
 #include "game/globals.h"
@@ -1592,7 +1593,11 @@ static void cars__build(
  * \details	Port of FUN_1f38_a7ee, FUN_1f38_a6ad, FUN_1f38_aa37 and
  * 			FUN_31a0_25d9. Each step restores the 70-row strip from
  * 			CARS_BACKGROUND_PAGE, draws the tire rotation frame matching
- * 			the horizontal position, and waits one timer tick.
+ * 			the horizontal position, and waits one timer tick. As in
+ * 			DrawCar (1f38:971c..9773) the timer handler of a drive runs
+ * 			meanwhile with DS:0x286 and DS:0x5a0e set, which makes the
+ * 			sound of the car; a passing car (CARS_PASSING) keeps the
+ * 			handler between its two scrolls.
  *
  ******************************************************************************/
 static void cars__scroll(
@@ -1662,6 +1667,13 @@ static void cars__scroll(
 
 	int phaseIndex = 0;
 
+	exe_writeU16(DRIVE_NOT_DRIVEN, 1);
+	exe_writeU16(DRIVE_SCROLL_SOUND, 1);
+
+	if (exe_readS16(CARS_PASSING) != 2) {
+		drive_timerOn();
+	}
+
 	while (phaseIndex < 3 && phases[phaseIndex].count == 0) {
 		phaseIndex++;
 	}
@@ -1718,11 +1730,12 @@ static void cars__scroll(
 
 		uint32_t startTick = globals_ticks;
 
+		exe_writeU16(STATE_CAR_SCROLL_X, (uint16_t)column);
+
 		while (globals_ticks == startTick) {
 			dos_service();
 		}
 
-		exe_writeU16(STATE_CAR_SCROLL_X, (uint16_t)column);
 		phases[phaseIndex].count--;
 
 		while (phaseIndex < 3 && phases[phaseIndex].count == 0) {
@@ -1733,6 +1746,13 @@ static void cars__scroll(
 			column = (int16_t)(column + phases[phaseIndex].step);
 		}
 	}
+
+	if (exe_readS16(CARS_PASSING) != 1) {
+		drive_timerOff();
+	}
+
+	exe_writeU16(DRIVE_SCROLL_SOUND, 0);
+	exe_writeU16(DRIVE_NOT_DRIVEN, 0);
 
 	plat_copyRect(
 		globals_displaySurface,

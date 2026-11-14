@@ -31,6 +31,12 @@
 #define DRIVE_AUTOMATIC 0x58e6 /**< s16: 1 with the first transmission. */
 #define DRIVE_GO		0x7d66 /**< s16: 1 once "Go !" shows. */
 
+/*
+ * Set by cars_draw (DrawCar 1f38:8e48) while a car scrolls.
+ */
+#define DRIVE_NOT_DRIVEN   0x286  /**< s16: not 0, the car is not driven. */
+#define DRIVE_SCROLL_SOUND 0x5a0e /**< s16: the scrolling car sounds. */
+
 /*******************************************************************************
 ;
 ;	T Y P E S
@@ -50,6 +56,10 @@
 ;-----------------------------------------------------------------------------*/
 
 int16_t drive_run(void);
+
+void drive_timerOn(void);
+
+void drive_timerOff(void);
 
 void drive_crashMark(
 	int16_t position
