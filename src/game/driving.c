@@ -31,6 +31,8 @@
 #include "game/exe.h"
 #include "game/globals.h"
 #include "game/random.h"
+#include "game/road.h"
+#include "game/roadstate.h"
 #include "game/state.h"
 #include "game/ui.h"
 #include "game/video.h"
@@ -136,9 +138,9 @@
 #define DRIVING_PLAYER_SUB	   0x7d32 /**< s16: player's eighth-tile pos. */
 #define DRIVING_PLAYER_STEP	   0x7d34 /**< s16: player's speed step. */
 #define DRIVING_PLAYER_LAT	   0x7d36 /**< s16: player's lateral offset. */
-#define DRIVING_ROAD_X		   0x7d38 /**< s16: road view X offset. */
+#define DRIVING_ROAD_X		   0x7d38 /**< s16: eye height of the view. */
 #define DRIVING_UNKNOWN_7D3A   0x7d3a /**< s16: cleared at road start. */
-#define DRIVING_CURVE		   0x7d3c /**< s16: road curve at player. */
+#define DRIVING_CURVE		   0x7d3c /**< s16: heading of the view. */
 #define DRIVING_SLOPE		   0x7d3e /**< s16: road slope at player. */
 #define DRIVING_NO_DRIVER	   0x7d40 /**< s16: 1 vs car with no driver. */
 #define DRIVING_CAR_GAP		   0x7d7c /**< s16: 3645 opponent Z gap slot. */
@@ -216,14 +218,6 @@ static int16_t driving__roadCurve(
 static int16_t driving__roadFlags(
 	int16_t place
 );
-
-static void driving__setRoadWidths(
-	int16_t	 place,
-	uint16_t leftAt,
-	uint16_t rightAt
-);
-
-static void driving__roadAdvance(void);
 
 static void driving__matchGear(
 	int16_t	 speed,
@@ -677,63 +671,6 @@ void driving_setRaceColors(
 
 /** ****************************************************************************
  *
- * \brief	Set road and lane state at the start of a drive.
- *
- * \details	Port of the state-reset parts of FUN_3645_185d and FUN_3645_527a
- * 			needed until segment 3645 is ported (step 14j), using flat-road
- * 			(zero) curve and flag stand-ins for segment 0x489b.
- *
- ******************************************************************************/
-void driving_roadStart(void) {
-	int16_t place = exe_readS16(DRIVING_PLACE);
-
-	if (*exe_data(DRIVING_RACING) != 0) {
-		place = DRIVING_START;
-	} else {
-		switch (exe_readS16(DRIVING_DEMO_ROAD)) {
-			case 1:
-				place = 10;
-				break;
-
-			case 2:
-				place = 0x41;
-				break;
-
-			case 3:
-				place = 0x73;
-				break;
-
-			default:
-				break;
-		}
-	}
-
-	driving__writeS16(DRIVING_PLACE, place);
-	driving__setRoadWidths(place, DRIVING_ROAD_LEFT, DRIVING_ROAD_RIGHT);
-	driving__setRoadWidths(
-		(int16_t)(place + 4),
-		DRIVING_UNKNOWN_70C0,
-		DRIVING_UNKNOWN_7D2E
-	);
-	driving__writeS16(DRIVING_ROAD_LEFT, DRIVING_LANE_LEFT);
-	driving__writeS16(DRIVING_ROAD_RIGHT, DRIVING_LANE_RIGHT);
-	driving__writeS16(DRIVING_PLAYER_SUB, 0);
-	driving__writeS16(DRIVING_PLAYER_LAT, DRIVING_LANE_START);
-	driving__writeS16(DRIVING_ROAD_X, DRIVING_ROAD_X_START);
-	driving__writeS16(DRIVING_UNKNOWN_7D3A, 0);
-	driving__writeS16(DRIVING_SLOPE, 0);
-	driving__writeS16(DRIVING_CURVE, 0);
-	driving__writeS16(DRIVING_PLAYER_STEP, 0);
-	driving__writeS16(DRIVING_RIVAL_SIDE, 1);
-	driving__writeS16(DRIVING_WEAVE_READY, random_next(2) == 0 ? 1 : 0);
-	driving__writeS16(DRIVING_RIVAL_ATTACK, 1);
-	driving__writeS16(DRIVING_CAR_GAP, 0);
-	driving__writeS16(DRIVING_CRASHED, 0);
-	driving__writeS16(DRIVING_CARS_NEAR, 0);
-}
-
-/** ****************************************************************************
- *
  * \brief	Step both cars, police chase, finish checks and collisions.
  *
  * \details	Port of FUN_1000_da25. Updates the dashboard gear display, checks
@@ -1013,129 +950,32 @@ static void driving__selectRange(
 
 /** ****************************************************************************
  *
- * \brief	Curve delta of a road tile (stand-in for segment 0x489b until 14j).
+ * \brief	Curve of a road tile.
  *
  * \param	place			Road tile index.
  *
- * \return	Curve value at that tile (0 on the flat stand-in road).
+ * \return	The curve at that tile (road_table).
  *
  ******************************************************************************/
 static int16_t driving__roadCurve(
 	int16_t place
 ) {
-	(void)place;
-	return 0;
+	return (int16_t)road_table[ROAD_CURVE + place];
 }
 
 /** ****************************************************************************
  *
- * \brief	Width and feature flags of a road tile (stand-in until step 14j).
+ * \brief	Road flags of a road tile.
  *
  * \param	place			Road tile index.
  *
- * \return	Flags word at that tile (0 on the wide stand-in road).
+ * \return	The road flags at that tile (road_table).
  *
  ******************************************************************************/
 static int16_t driving__roadFlags(
 	int16_t place
 ) {
-	(void)place;
-	return 0;
-}
-
-/** ****************************************************************************
- *
- * \brief	Store road left and right edges from the tile width flags.
- *
- * \param	place			Road tile index.
- * \param	leftAt			DS offset receiving the left road edge.
- * \param	rightAt			DS offset receiving the right road edge.
- *
- * \details	Matches FUN_3645_1efc checking flags & 0xe0 (bit 0x80 narrows both
- * 			sides, 0x20 narrows the left edge, 0x40 narrows the right edge).
- *
- ******************************************************************************/
-static void driving__setRoadWidths(
-	int16_t	 place,
-	uint16_t leftAt,
-	uint16_t rightAt
-) {
-	int16_t flags = (int16_t)(driving__roadFlags(place) & 0xe0);
-	int16_t left = DRIVING_LANE_LEFT;
-	int16_t right = DRIVING_LANE_RIGHT;
-
-	if ((flags & 0x80) != 0) {
-		left = DRIVING_LANE_NARROW;
-		right = DRIVING_LANE_PINCH;
-	} else if ((flags & 0x20) != 0) {
-		left = DRIVING_LANE_NARROW;
-	} else if (flags != 0) {
-		right = DRIVING_LANE_PINCH;
-	}
-
-	driving__writeS16(leftAt, left);
-	driving__writeS16(rightAt, right);
-}
-
-/** ****************************************************************************
- *
- * \brief	Advance the player's road tile and update edges and auto-steer.
- *
- * \details	Port of FUN_3645_1efc without its road graphics. Carries whole tiles
- * 			out of DRIVING_PLAYER_SUB into DRIVING_PLACE, refreshes road edges
- * 			at player and +4 ahead, and auto-centers in demo mode or past the
- * 			finish line.
- *
- ******************************************************************************/
-static void driving__roadAdvance(void) {
-	int16_t sub = exe_readS16(DRIVING_PLAYER_SUB);
-	int16_t place = (int16_t)(exe_readS16(DRIVING_PLACE) + (sub >> 3));
-
-	driving__writeS16(DRIVING_PLACE, place);
-	exe_writeU16(DRIVING_PLAYER_SUB, (uint16_t)(sub & 7));
-
-	driving__setRoadWidths(place, DRIVING_ROAD_LEFT, DRIVING_ROAD_RIGHT);
-	driving__setRoadWidths(
-		(int16_t)(place + 4),
-		DRIVING_UNKNOWN_70C0,
-		DRIVING_UNKNOWN_7D2E
-	);
-	driving__writeS16(DRIVING_SLOPE, 0);
-
-	if (globals_demoMode != 0 || globals_autoSwitch != 0 ||
-		place > driving__raceEnd()) {
-		int16_t target = DRIVING_LANE_MID;
-
-		if (exe_readS16(DRIVING_UNKNOWN_7E90) > DRIVING_LANE_MID) {
-			target = (int16_t)(target - 0x140);
-		} else {
-			target = (int16_t)(target + 0xa0);
-		}
-
-		int16_t lateral = exe_readS16(DRIVING_PLAYER_LAT);
-
-		if (driving__magnitude((int16_t)(lateral - target)) > 100) {
-			lateral = (int16_t)(target + (target < lateral ? 100 : -100));
-		} else {
-			lateral = target;
-		}
-		driving__writeS16(DRIVING_PLAYER_LAT, lateral);
-
-		int16_t nextCurve = driving__roadCurve(place);
-		int16_t curCurve = exe_readS16(DRIVING_CURVE);
-
-		if (driving__magnitude((int16_t)(nextCurve - curCurve)) > 0) {
-			int16_t delta = (int16_t)((curCurve - nextCurve) * 2);
-
-			if (delta > 0x18) {
-				delta = 0x18;
-			} else if (delta < -0x18) {
-				delta = -0x18;
-			}
-			driving__writeS16(DRIVING_PLAYER + DRIVING_WHEEL, delta);
-		}
-		driving__writeS16(DRIVING_CURVE, nextCurve);
-	}
+	return (int16_t)road_table[ROAD_FLAGS + place];
 }
 
 /** ****************************************************************************
@@ -1445,7 +1285,7 @@ static void driving__opponentAi(void) {
  * \brief	Advance the player's road position for the current frame.
  *
  * \details	Port of FUN_1000_d624. Converts player speed to an eighth-tile
- * 			step, carries whole tiles via driving__roadAdvance, and stops the
+ * 			step, carries whole tiles via roadstate_advance, and stops the
  * 			car once the finish line is crossed and speed drops to zero.
  *
  ******************************************************************************/
@@ -1460,7 +1300,7 @@ static void driving__advancePlayer(void) {
 	driving__writeS16(DRIVING_PLAYER_SUB, sub);
 
 	if (sub >= 8) {
-		driving__roadAdvance();
+		roadstate_advance();
 	}
 
 	if (exe_readS16(DRIVING_PLACE) >= exe_readS16(DRIVING_LENGTH) &&

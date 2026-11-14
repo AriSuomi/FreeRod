@@ -9,9 +9,9 @@
  * 			shift (FUN_1f38_12f7, 14f2), steering wheel (1130) and
  * 			needles (01d2, 0349, 0425), and the timer handler of a drive
  * 			(TimerIsr2 1000:238c with FUN_1000_1aad, 1b27, 2374), which
- * 			drives the player's car in a race. The road (segment 3645)
- * 			and the sounds are not ported yet: drive__notPorted stands in
- * 			for each and logs it once.
+ * 			drives the player's car in a race. The road's state is
+ * 			roadstate.c; its pictures and the sounds are not ported
+ * 			yet: drive__notPorted stands in for each and logs it once.
  *
  * 			Layout. On EGA the original splits the screen (line compare
  * 			register, FUN_31a0_0014): the instrument panel is at the start
@@ -42,6 +42,8 @@
 #include "game/lib.h"
 #include "game/race.h"
 #include "game/random.h"
+#include "game/road.h"
+#include "game/roadstate.h"
 #include "game/screen.h"
 #include "game/ui.h"
 #include "game/video.h"
@@ -148,8 +150,6 @@
 #define DRIVE_PLACE		   0x7d30 /**< s16: place on the road. */
 #define DRIVE_UNKNOWN_824A 0x824a /**< u8: 100 with the split screen. */
 #define DRIVE_WHEEL		   0x82c2 /**< s16: record +4 the panel shows. */
-#define DRIVE_ROAD_LEFT	   0x33f0 /**< Words by place: bit 0 ends a cruise. */
-#define DRIVE_ROAD_RIGHT   0x3cb0 /**< Words by place: bit 0 ends a cruise. */
 #define DRIVE_FLAGS		   0x799c /**< u16: what went wrong in a race. */
 #define DRIVE_WON_FLAGS	   0x7a9e /**< u16: bit 0, the player won. */
 
@@ -160,7 +160,6 @@
 #define DRIVE_JUMPED_LIGHT 0x81	  /**< Flags: moved before "Go !". */
 #define DRIVE_NEEDLE_STEP  1	  /**< A needle moves for more than this. */
 #define DRIVE_KEY_ESCAPE   0x1b	  /**< Key that ends a cruise. */
-#define DRIVE_FRAME_TICKS  9	  /**< Ticks FUN_3645_1e9e waits per frame. */
 
 /*
  * The timer handler of a drive. Variables in the data segment image.
@@ -223,9 +222,6 @@
 typedef enum drive__missing_tag {
 	DRIVE__ROAD_SETUP, /**< FUN_3645_2429. */
 	DRIVE__NO_TACHO,   /**< FUN_1f38_05f2. */
-	DRIVE__ROAD_START, /**< FUN_3645_2114. */
-	DRIVE__ROAD_FRAME, /**< FUN_3645_213d. */
-	DRIVE__ROAD_CHECK, /**< FUN_3645_206b. */
 	DRIVE__SOUND_OFF,  /**< FUN_1f38_7001. */
 	DRIVE__MISSING_COUNT
 } drive__Missing;
@@ -401,8 +397,6 @@ static void drive__setSpeed(
 	bool brake
 );
 
-static void drive__paceFrame(void);
-
 static void drive__steer(
 	bool steer
 );
@@ -427,9 +421,6 @@ static int16_t drive__raceEnd(void);
 static const char * const drive__missingNames[DRIVE__MISSING_COUNT] = {
 	"the road's pictures (FUN_3645_2429)",
 	"FUN_1f38_05f2 (automatic, 8087 code)",
-	"the start of the road (FUN_3645_2114)",
-	"a frame of the road (FUN_3645_213d)",
-	"the road's check of the car (3645:206b)",
 	"stopping the sound (FUN_1f38_7001)",
 };
 
@@ -450,29 +441,30 @@ static bool drive__logged[DRIVE__MISSING_COUNT];
  * \return	What the last step returned (not 0).
  *
  * \details	Port of FUN_1f38_7b22, with the layout of the adapters
- * 			without a split screen (see the file's block). Both surfaces
- * 			become the screen and the palette is blanked. The dashboard
- * 			picture is drawn (drive__drawDashboard), the road is set up
- * 			(not ported), the gear shift, the gear, the steering wheel
- * 			and both needles are drawn; with an automatic (DS:0x58e6)
- * 			the tachometer is left out. FUN_1f38_0f53, which loads the
- * 			pictures of the steering wheel, has no part in the port
- * 			(drive__drawWheel). The top rows of the
- * 			windshield frame are copied to the display and the palette
- * 			is shown. Then each pass draws a frame of the road (not
- * 			ported) and runs a step (drive__step) until that returns
- * 			not 0; after a step the gear is drawn while the record's
- * 			+0x1a is set, a needle is moved when its value is more than
- * 			1 from the one shown, and the steering wheel follows the
- * 			record's +4. At the end the display is copied to the work
- * 			surface (video table entry 5; direction taken from its use)
- * 			and the surfaces are put back.
+ * 			without a split screen (see the file's block). Both
+ * 			surfaces become the screen and the palette is blanked.
+ * 			The dashboard picture is drawn (drive__drawDashboard),
+ * 			the road's pictures are loaded (not ported), the gear
+ * 			shift, the gear, the steering wheel and both needles are
+ * 			drawn; with an automatic (DS:0x58e6) the tachometer is
+ * 			left out. The road starts (roadstate_start).
+ * 			FUN_1f38_0f53, which loads the pictures of the steering
+ * 			wheel, has no part in the port (drive__drawWheel). The
+ * 			top rows of the windshield frame are copied to the
+ * 			display and the palette is shown. Then each pass makes a
+ * 			frame of the road (roadstate_frame, which waits 9 ticks)
+ * 			and runs a step (drive__step) until that returns not 0;
+ * 			after a step the gear is drawn while the record's +0x1a
+ * 			is set, a needle is moved when its value is more than 1
+ * 			from the one shown, and the steering wheel follows the
+ * 			record's +4. At the end the display is copied to the
+ * 			work surface (video table entry 5; direction taken from
+ * 			its use) and the surfaces are put back.
  *
  * 			The original's loop around the set-up (DS:0x58ee above 1)
  * 			never repeats and is left out, as are DS:0x8228 (compared
  * 			with a local, no effect) and the end of a demo (DS:0x610 =
- * 			99). The port's pass calls dos_service once: the original
- * 			is paced by the drawing of the road.
+ * 			99). The port's pass also calls dos_service once.
  *
  ******************************************************************************/
 int16_t drive_run(void) {
@@ -509,11 +501,7 @@ int16_t drive_run(void) {
 	}
 
 	*exe_data(DRIVE_UNKNOWN_824A) = 0;
-	drive__notPorted(DRIVE__ROAD_START);
-
-	if (*exe_data(DRIVE_RACING) != 0) {
-		driving_roadStart();
-	}
+	roadstate_start();
 
 	plat_copyRect(view, display, 0, 0, PLAT_WIDTH, DRIVE_TOP_ROWS);
 	video_showPalette();
@@ -521,14 +509,7 @@ int16_t drive_run(void) {
 	int16_t result;
 
 	for (;;) {
-		drive__notPorted(DRIVE__ROAD_FRAME);
-
-		if (*exe_data(DRIVE_RACING) != 0 &&
-			exe_readS16(DRIVE_STATE) >= 2 &&
-			race_testFlags == RACE_NO_TEST) {
-			drive__paceFrame();
-		}
-
+		roadstate_frame();
 		dos_service();
 		result = drive__step();
 
@@ -1262,15 +1243,12 @@ static int16_t drive__step(void) {
  * 			(record +0x18), and makes +0x24 2 if it was 1.
  * 			Afterwards Esc, a click key, the mouse button or (not
  * 			ported) the joystick button end the cruise, as does bit 0
- * 			of the road tables DS:0x33f0 and DS:0x3cb0 at the place
- * 			after the car's (DS:0x7d30). Otherwise the revs rise by the
+ * 			of the side flags (road_table) at the tile after the car's
+ * 			(DS:0x7d30). Otherwise the revs rise by the
  * 			gear's step (DS:0x51d8) up to 4700, the speed is the revs
  * 			by the gear's revs per mph (DS:0x51e2), and from 4501 revs
  * 			the car shifts up while it has gears left (record +0x1c),
  * 			after which the revs stay.
- *
- * 			Stand-in: the road is not ported and the place never
- * 			changes, so the port ends the cruise at this point.
  *
  ******************************************************************************/
 static int16_t drive__cruise(void) {
@@ -1307,14 +1285,9 @@ static int16_t drive__cruise(void) {
 		}
 	}
 
-	uint16_t next = (uint16_t)((exe_readS16(DRIVE_PLACE) + 1) * 2);
-	bool	 there = (*exe_data((uint16_t)(DRIVE_ROAD_LEFT + next)) & 1) != 0 ||
-		(*exe_data((uint16_t)(DRIVE_ROAD_RIGHT + next)) & 1) != 0;
-
-	/*
-	 * Stand-in for the road, which is not ported.
-	 */
-	there = there || drive__logged[DRIVE__ROAD_FRAME];
+	uint16_t next = (uint16_t)(exe_readS16(DRIVE_PLACE) + 1);
+	bool	 there = (road_table[ROAD_LEFT + next] & 1) != 0 ||
+		(road_table[ROAD_RIGHT + next] & 1) != 0;
 
 	if (!there && globals_clickKeyFlag2 == 0) {
 		int16_t gear = drive__playerWord(DRIVING_GEAR);
@@ -1682,9 +1655,9 @@ static void drive__timerInterrupt(void) {
  * 			(+0x22) with gas and has gears left or is in the first range
  * 			of a gear above the first without gas; then the range of the
  * 			gear (drive__pickRange), the speed (drive__setSpeed) and the
- * 			steering (drive__steer) follow. At the end the road code
- * 			checks the car (3645:206b, not ported: taken as 0; not 0
- * 			stops the car with the flags 0x21).
+ * 			steering (drive__steer) follow. At the end of a step of a
+ * 			race the road code checks the car (roadstate_check); a
+ * 			crash stops the car with the flags 0x21.
  *
  ******************************************************************************/
 static void drive__driveCar(void) {
@@ -1752,7 +1725,10 @@ static void drive__driveCar(void) {
 	drive__pickRange();
 	drive__setSpeed(controls.brake);
 	drive__steer(controls.steer);
-	drive__notPorted(DRIVE__ROAD_CHECK);
+
+	if (*exe_data(DRIVE_RACING) != 0 && roadstate_check() != 0) {
+		drive_stopCar(DRIVE_CRASHED);
+	}
 }
 
 /** ****************************************************************************
@@ -2190,24 +2166,6 @@ static void drive__steer(
 
 	drive__setPlayerWord(DRIVING_STEERING, steering);
 	drive__setPlayerWord(DRIVING_WHEEL, wheel);
-}
-
-/** ****************************************************************************
- *
- * \brief	Wait 9 timer ticks to match FUN_3645_1e9e's frame pacing.
- *
- * \details	Not part of the original's timing loop: stands in for the
- * 			9-tick busy-wait at the end of FUN_3645_1e9e while segment
- * 			3645 is not ported yet, so car movement runs at ~8.1 Hz in
- * 			lockstep with TimerIsr2.
- *
- ******************************************************************************/
-static void drive__paceFrame(void) {
-	uint32_t until = globals_ticks + DRIVE_FRAME_TICKS;
-
-	while ((int32_t)(globals_ticks - until) < 0) {
-		dos_service();
-	}
 }
 
 /** ****************************************************************************

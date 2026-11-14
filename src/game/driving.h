@@ -107,8 +107,6 @@ void driving_setRaceColors(
 	int16_t paint
 );
 
-void driving_roadStart(void);
-
 void driving_move(void);
 
 #endif // GAME_DRIVING_H_INCLUDED
