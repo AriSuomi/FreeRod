@@ -11,8 +11,7 @@
  * 			last race when no opponent is left. Not ported yet: the race
  * 			(driving; its result is in race.c, meeting an opponent in
  * 			challenge.c), looking under an opponent's hood
- * 			(FUN_1000_a265), the police car's pictures (FUN_1f38_99d9;
- * 			whether it comes and goes is ported) and the sounds. The
+ * 			(FUN_1000_a265) and the sounds. The
  * 			outcomes of a race are here too: the sentence
  * 			(FUN_1000_b08c), the winner (FUN_1000_a544) and the event
  * 			on arriving (FUN_1000_a416).
@@ -91,16 +90,16 @@
 /*
  * What the player clicked (hotspots of screen 0x25, Bob's Drive-In).
  */
-#define STREET_EVENT_HOME	1 /**< The road at the bottom: drive home. */
-#define STREET_EVENT_CAR	2 /**< The opponent's car, or wait for one. */
-#define STREET_EVENT_HOOD	3 /**< On the car: look under the hood. */
-#define STREET_EVENT_LIST	4 /**< The man standing: list of opponents. */
-#define STREET_EVENT_POLICE 5 /**< The ORDER sign: sets DS:0x6c88. */
+#define STREET_EVENT_HOME  1 /**< The road at the bottom: drive home. */
+#define STREET_EVENT_CAR   2 /**< The opponent's car, or wait for one. */
+#define STREET_EVENT_HOOD  3 /**< On the car: look under the hood. */
+#define STREET_EVENT_LIST  4 /**< The man standing: list of opponents. */
+#define STREET_EVENT_ORDER 5 /**< The ORDER sign: sets DS:0x6c88. */
 
 /*
  * Element records of screen 0x25 (5 of 18 bytes at DS:0x20aa) that
  * FUN_1000_a0f8 changes: 0 the road, 1 and 3 lie on the opponent's car,
- * 2 the ORDER sign (on while there is no police), 4 the man standing
+ * 2 the ORDER sign (on while the waitress is away), 4 the man standing
  * (fixed box). Elements 3 and 4 are kept sorted by their left edge.
  */
 #define STREET_ELEMENTS		0x20aa /**< DS: the element records. */
@@ -149,8 +148,8 @@
  * unported code uses them too).
  */
 #define STREET_HERE			0x7f86 /**< s16: an opponent's car stands. */
-#define STREET_POLICE		0x6c84 /**< s16: police -1 off, 0 away, 1 here. */
-#define STREET_CALLED		0x6c88 /**< s16: set by event 5 (unknown). */
+#define STREET_WAITRESS		0x6c84 /**< s16: -1 off, 0 away, 1 here. */
+#define STREET_CALLED		0x6c88 /**< s16: 1 after the ORDER sign. */
 #define STREET_FIRST		0x6ca2 /**< s16: first ranking of a visit. */
 #define STREET_COUNT		0x6c86 /**< s16: ranked opponents. */
 #define STREET_PICKS		0x6c8a /**< s16[]: ranked opponent indexes. */
@@ -314,7 +313,7 @@ static void street__swapElements(void);
 
 static void street__setHotspots(
 	bool opponentHere,
-	bool policeAway
+	bool waitressAway
 );
 
 static uint8_t street__modelClass(
@@ -363,14 +362,14 @@ static void street__select(
 	int16_t index
 );
 
-static bool street__police(
+static bool street__waitress(
 	int16_t leaving,
 	int16_t here,
 	int16_t chance,
 	int16_t goChance
 );
 
-static int16_t street__policeChance(
+static int16_t street__waitressChance(
 	int16_t onStrip
 );
 
@@ -448,7 +447,7 @@ void street_visit(void) {
 
 	cursor_set(CURSOR_SHOW_NOW);
 	exe_writeU16(STREET_HERE, 0);
-	exe_writeU16(STREET_POLICE, (uint16_t)-1);
+	exe_writeU16(STREET_WAITRESS, (uint16_t)-1);
 	exe_writeU16(STREET_CALLED, 0);
 	exe_writeU16(STREET_FIRST, 1);
 	globals_place = STREET_PLACE;
@@ -461,7 +460,7 @@ void street_visit(void) {
 
 		street__setHotspots(
 			here,
-			exe_readS16(STREET_POLICE) == 0 && exe_readS16(STREET_CALLED) == 0
+			exe_readS16(STREET_WAITRESS) == 0 && exe_readS16(STREET_CALLED) == 0
 		);
 		ui_open(STREET_SCREEN);
 
@@ -565,8 +564,8 @@ void street_visit(void) {
 			} else {
 				soon = true;
 			}
-		} else if (event == STREET_EVENT_POLICE) {
-			if (exe_readS16(STREET_POLICE) == 0) {
+		} else if (event == STREET_EVENT_ORDER) {
+			if (exe_readS16(STREET_WAITRESS) == 0) {
 				exe_writeU16(STREET_CALLED, 1);
 			}
 		}
@@ -614,7 +613,7 @@ static void street__swapElements(void) {
  * \brief	Place the hotspots of screen 0x25 for the car on the street.
  *
  * \param	opponentHere	An opponent's car stands on the street.
- * \param	policeAway		No police (DS:0x6c84 and DS:0x6c88 are 0).
+ * \param	waitressAway	Waitress away (DS:0x6c84 and DS:0x6c88 are 0).
  *
  * \details	Port of FUN_1000_a0f8. Element 4 gets back its place and its
  * 			fixed box. With a car, elements 1 and 3 get boxes 1 and 3 of
@@ -625,7 +624,7 @@ static void street__swapElements(void) {
  ******************************************************************************/
 static void street__setHotspots(
 	bool opponentHere,
-	bool policeAway
+	bool waitressAway
 ) {
 	if (exe_readS16((uint16_t)(street__element(4) + STREET_ELEMENT_ID)) !=
 		STREET_FIXED_ID) {
@@ -640,7 +639,7 @@ static void street__setHotspots(
 	exe_writeU16((uint16_t)(fixed + STREET_BOTTOM), STREET_FIXED_BOTTOM);
 	exe_writeU16(
 		(uint16_t)(street__element(2) + STREET_ELEMENT_TYPE),
-		policeAway ? STREET_TYPE_HOT : STREET_TYPE_SKIPPED
+		waitressAway ? STREET_TYPE_HOT : STREET_TYPE_SKIPPED
 	);
 
 	uint16_t car = street__element(1);
@@ -1034,26 +1033,25 @@ static void street__select(
 
 /** ****************************************************************************
  *
- * \brief	Let the police come or go by chance.
+ * \brief	Let the waitress come or go by chance.
  *
- * \param	leaving			0: it may come (and go again at once); 1: it
+ * \param	leaving			0: she may come (and go again at once); 1: she
  * 							may leave.
- * \param	here			Passed to FUN_1f38_99d9 (an opponent's car is
+ * \param	here			Passed to cars_waitress (an opponent's car is
  * 							on the street).
- * \param	chance			Percent chance that it comes or leaves.
- * \param	goChance		Percent chance that it leaves right after
+ * \param	chance			Percent chance that she comes or leaves.
+ * \param	goChance		Percent chance that she leaves right after
  * 							coming.
  *
- * \retval	true	The police came or left.
+ * \retval	true	The waitress came or left.
  * \retval	false	Nothing happened.
  *
- * \details	Port of FUN_1000_914c. It comes only while DS:0x6c84 is 0 and
+ * \details	Port of FUN_1000_914c. She comes only while DS:0x6c84 is 0 and
  * 			more than 2 cars drove off (DS:0x51f0); leaving resets that
- * 			count. Not ported: FUN_1f38_99d9, which draws it coming (0) and
- * 			leaving (1); it is logged.
+ * 			count.
  *
  ******************************************************************************/
-static bool street__police(
+static bool street__waitress(
 	int16_t leaving,
 	int16_t here,
 	int16_t chance,
@@ -1062,39 +1060,29 @@ static bool street__police(
 	bool happened = false;
 
 	if (leaving == 0) {
-		if (exe_readS16(STREET_POLICE) == 0 && exe_readS16(STREET_SEEN) > 2 &&
-			random_next(100) < chance) {
+		if (exe_readS16(STREET_WAITRESS) == 0 &&
+			exe_readS16(STREET_SEEN) > 2 && random_next(100) < chance) {
 			happened = true;
 			cursor_set(CURSOR_HIDE_NOW);
-			plat_log(
-				"the police car coming (FUN_1f38_99d9 0, %d) is not "
-				"ported yet",
-				here
-			);
-			exe_writeU16(STREET_POLICE, 1);
+			cars_waitress(0, here);
+			exe_writeU16(STREET_WAITRESS, 1);
 
 			if (random_next(100) < goChance) {
 				screen_waitRetraces(100);
-				plat_log(
-					"the police car leaving (FUN_1f38_99d9 1, %d) is "
-					"not ported yet",
-					here
-				);
-				exe_writeU16(STREET_POLICE, 0);
+				cars_waitress(1, here);
+				exe_writeU16(STREET_WAITRESS, 0);
 				exe_writeU16(STREET_CALLED, 0);
 			}
 		}
-	} else if (leaving == 1 && exe_readS16(STREET_POLICE) == 1 && random_next(100) < chance) {
-		happened = true;
-		cursor_set(CURSOR_HIDE_NOW);
-		plat_log(
-			"the police car leaving (FUN_1f38_99d9 1, %d) is not "
-			"ported yet",
-			here
-		);
-		exe_writeU16(STREET_POLICE, 0);
-		exe_writeU16(STREET_CALLED, 0);
-		exe_writeU16(STREET_SEEN, 0);
+	} else if (leaving == 1) {
+		if (exe_readS16(STREET_WAITRESS) == 1 && random_next(100) < chance) {
+			happened = true;
+			cursor_set(CURSOR_HIDE_NOW);
+			cars_waitress(1, here);
+			exe_writeU16(STREET_WAITRESS, 0);
+			exe_writeU16(STREET_CALLED, 0);
+			exe_writeU16(STREET_SEEN, 0);
+		}
 	}
 
 	if (happened) {
@@ -1106,7 +1094,7 @@ static bool street__police(
 
 /** ****************************************************************************
  *
- * \brief	The percent chance that the police comes.
+ * \brief	The percent chance that the waitress comes.
  *
  * \param	onStrip			1 when globals_place is 6, else 0.
  *
@@ -1116,7 +1104,7 @@ static bool street__police(
  * \details	Part of FUN_1000_92a4.
  *
  ******************************************************************************/
-static int16_t street__policeChance(
+static int16_t street__waitressChance(
 	int16_t onStrip
 ) {
 	return (int16_t)(onStrip * 10 + exe_readS16(STREET_CALLED) * 0x4b +
@@ -1174,7 +1162,7 @@ static void street__trimWord(
  * 			text at DS:0x51f2 and the model's name, without a final dot;
  * 			it is centered in the space after the money (on a multiple
  * 			of 8, at least 15 columns in) and loses words until it fits.
- * 			The police may come or go before and after the car moves.
+ * 			The waitress may come or go before and after the car moves.
  * 			A car that only drives by counts as gone (DS:0x7f86 0).
  *
  ******************************************************************************/
@@ -1211,17 +1199,17 @@ static void street__drawCar(
 	pText[length] = 0;
 
 	int16_t onStrip = globals_place == STREET_STRIP;
-	int16_t chance = street__policeChance(onStrip);
+	int16_t chance = street__waitressChance(onStrip);
 
 	if (mode == CARS_DRAW_DRIVE_IN) {
-		exe_writeU16(STREET_POLICE, (uint16_t)-1);
+		exe_writeU16(STREET_WAITRESS, (uint16_t)-1);
 	}
 
 	exe_writeU16(STREET_HERE, (uint16_t)(mode == CARS_DRAW_SCROLL_RIGHT));
 
 	if (mode == CARS_DRAW_SCROLL_IN &&
-		!street__police(0, exe_readS16(STREET_HERE), chance, 10)) {
-		street__police(1, exe_readS16(STREET_HERE), 0x14, 0);
+		!street__waitress(0, exe_readS16(STREET_HERE), chance, 10)) {
+		street__waitress(1, exe_readS16(STREET_HERE), 0x14, 0);
 	}
 
 	if (length > 0 && pText[length - 1] == '.') {
@@ -1281,7 +1269,7 @@ static void street__drawCar(
 	}
 
 	if (mode == CARS_DRAW_DRIVE_IN) {
-		exe_writeU16(STREET_POLICE, 0);
+		exe_writeU16(STREET_WAITRESS, 0);
 	}
 
 	int16_t here = mode != CARS_DRAW_SCROLL_RIGHT;
@@ -1289,10 +1277,10 @@ static void street__drawCar(
 	exe_writeU16(STREET_HERE, (uint16_t)here);
 
 	if (!onStrip || mode == CARS_DRAW_SCROLL_RIGHT) {
-		chance = street__policeChance(onStrip);
+		chance = street__waitressChance(onStrip);
 
-		if (!street__police(0, here, chance, here ? 0 : 8)) {
-			street__police(1, here, 0x28, 0);
+		if (!street__waitress(0, here, chance, here ? 0 : 8)) {
+			street__waitress(1, here, 0x28, 0);
 		}
 	}
 }
@@ -1403,7 +1391,7 @@ static int16_t street__challenge(void) {
 		ui_statusTitle(exe_text(exe_readU16(STATE_STATUS_TITLE)));
 		video_showPalette();
 		exe_writeU16(STREET_HERE, 0);
-		exe_writeU16(STREET_POLICE, (uint16_t)-1);
+		exe_writeU16(STREET_WAITRESS, (uint16_t)-1);
 		exe_writeU16(STREET_CALLED, 0);
 
 		if (exe_readS16(STREET_ROAD_NEXT) == 0) {
@@ -1630,7 +1618,7 @@ static void street__sentence(void) {
 	globals_drawThrough = 1;
 	video_showPalette();
 	exe_writeU16(STREET_HERE, 0);
-	exe_writeU16(STREET_POLICE, (uint16_t)-1);
+	exe_writeU16(STREET_WAITRESS, (uint16_t)-1);
 	exe_writeU16(STREET_CALLED, 0);
 	cursor_set(1);
 	cursor_set(CURSOR_SHOW);

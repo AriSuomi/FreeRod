@@ -86,6 +86,23 @@
 #define CARS_FOREGROUND_MASK   0x448			/**< Mask, 0 = foreground. */
 #define CARS_FOREGROUND_NAME   "lib2/105_front" /**< Replacement name. */
 
+#define CARS_STREET_PLACE	   2				/**< Place on the street. */
+#define CARS_WAITRESS_MASK	   0x474			/**< Mask, 0 = foreground. */
+#define CARS_WAITRESS_NAME	   "lib2/140_front" /**< Replacement name. */
+#define CARS_WAITRESS_SHEETS   0x5a26			/**< DS: sprite sheets. */
+#define CARS_WAITRESS_FRAMES   0x5a32			/**< DS: 84 frame numbers. */
+#define CARS_WAITRESS_PHASES   0x5a86			/**< DS: coming and leaving. */
+#define CARS_WAITRESS_STRIP	   0x100			/**< Width of the strip. */
+#define CARS_WAITRESS_TOP	   0x44				/**< Top of the strip. */
+#define CARS_WAITRESS_HEIGHT   0x29				/**< Height of the strip. */
+#define CARS_WAITRESS_BOTTOM   0x6c				/**< Bottom of the strip. */
+#define CARS_WAITRESS_CAR_Y	   0xa3				/**< Bottom of the car. */
+#define CARS_WAITRESS_START_X  (-40)			/**< Start column, coming. */
+#define CARS_WAITRESS_REST_X   200				/**< Resting column. */
+#define CARS_WAITRESS_PATCH_W  0x30				/**< Saved patch width. */
+#define CARS_WAITRESS_STEPS	   0x54				/**< Steps (0..0x53). */
+#define CARS_WAITRESS_TICKS	   2				/**< Ticks per step. */
+
 #define CARS_FPU_ROOF		   0x6988 /**< DS: real 0.09. */
 #define CARS_FPU_FRONT		   0x6990 /**< DS: real 0.05. */
 #define CARS_FPU_REAR		   0x6998 /**< DS: real 0.01. */
@@ -214,6 +231,8 @@ static void cars__buildForeground(
 	int16_t stripTop
 );
 
+static void cars__saveWaitress(void);
+
 static void cars__showFrame0(
 	int16_t carLeft,
 	int16_t carTop,
@@ -258,6 +277,7 @@ static int16_t			cars__bodyWidth;
 static int16_t			cars__bodyHeight;
 static plat_ImageHandle cars__foreground;	 /**< Over the car, or 0. */
 static int16_t			cars__foregroundTop; /**< Row of cars__foreground. */
+static plat_ImageHandle cars__waitressFront; /**< Over the waitress, or 0. */
 
 /*******************************************************************************
 ;
@@ -777,6 +797,12 @@ void cars_draw(
 			PLAT_WIDTH,
 			CARS_STRIP_HEIGHT
 		);
+	}
+
+	if (mode == CARS_DRAW_DRIVE_IN &&
+		(globals_place == CARS_STREET_PLACE ||
+		 globals_place == CARS_BARRED_PLACE)) {
+		cars__saveWaitress();
 	}
 
 	if (mode != CARS_DRAW_STICKER) {
@@ -1678,8 +1704,7 @@ static void cars__scroll(
 				}
 
 				if (gap < CARS_GAP_COUNT) {
-					done = (int16_t)(left + exe_readS16((uint16_t)(gapAt + 2))
-					);
+					done = (int16_t)(left + exe_readS16((uint16_t)(gapAt + 2)));
 				}
 			}
 		}
@@ -2090,6 +2115,283 @@ void cars_applySticker(
 		visibleRows,
 		(int16_t)(carTop + bodyHeight - 1)
 	);
+}
+
+/** ****************************************************************************
+ *
+ * \brief	Save the street strip and build the foreground for the waitress.
+ *
+ * \details	Port of FUN_1f38_9e5d and the mask setup of FUN_1f38_84be for
+ * 			resource 0x474. The clean 256 by 41 strip at (0, 0x44) on the
+ * 			work surface goes to (0, 0) of CARS_BACKGROUND_PAGE (whose
+ * 			car strip starts at row 0x5e), and its pixels where mask 0x474
+ * 			is 0 become cars__waitressFront.
+ *
+ ******************************************************************************/
+static void cars__saveWaitress(void) {
+	plat_blit(
+		globals_workSurface,
+		0,
+		CARS_WAITRESS_TOP,
+		CARS_BACKGROUND_PAGE,
+		0,
+		0,
+		CARS_WAITRESS_STRIP,
+		CARS_WAITRESS_HEIGHT
+	);
+
+	if (cars__waitressFront != 0) {
+		plat_imageDestroy(cars__waitressFront);
+		cars__waitressFront = 0;
+	}
+
+	int					 index = lib_indexFromGameId(CARS_WAITRESS_MASK);
+	const lib_Resource * pMask = lib_get(index);
+
+	if (pMask == NULL) {
+		return;
+	}
+
+	int		  maskWidth = pMask->width;
+	int		  maskHeight = pMask->height;
+	uint8_t * pMaskPixels = malloc((size_t)maskWidth * (size_t)maskHeight);
+	uint8_t * pPixels =
+		malloc((size_t)CARS_WAITRESS_STRIP * CARS_WAITRESS_HEIGHT);
+
+	if (pMaskPixels != NULL && pPixels != NULL &&
+		lib_decodePixels(index, pMaskPixels)) {
+		plat_readPixels(
+			globals_workSurface,
+			0,
+			CARS_WAITRESS_TOP,
+			CARS_WAITRESS_STRIP,
+			CARS_WAITRESS_HEIGHT,
+			pPixels
+		);
+
+		for (int row = 0; row < CARS_WAITRESS_HEIGHT; row++) {
+			for (int column = 0; column < CARS_WAITRESS_STRIP; column++) {
+				bool hidden = row < maskHeight && column < maskWidth &&
+					pMaskPixels[row * maskWidth + column] == 0;
+
+				if (!hidden) {
+					pPixels[row * CARS_WAITRESS_STRIP + column] =
+						PLAT_TRANSPARENT;
+				}
+			}
+		}
+
+		cars__waitressFront = plat_imageCreateOverlay(
+			CARS_WAITRESS_NAME,
+			CARS_WAITRESS_STRIP,
+			CARS_WAITRESS_HEIGHT,
+			pPixels
+		);
+	}
+
+	free(pMaskPixels);
+	free(pPixels);
+}
+
+/** ****************************************************************************
+ *
+ * \brief	Skate the drive-in waitress out to the car or back in.
+ *
+ * \param	leaving			0: coming out (resource 0x476, phases at
+ * 							DS:0x5a86); 1: going back (resource 0x475,
+ * 							phases at DS:0x5a96).
+ * \param	here			Not 0 when an opponent's car stands on the
+ * 							street in front of the strip.
+ *
+ * \details	Port of FUN_1f38_99d9 (with FUN_1f38_975b, FUN_1f38_985c and
+ * 			FUN_1f38_990f). Across 84 steps of 2 ticks each, the frame
+ * 			from DS:0x5a32 (1-based) is drawn over the saved 256 by 41
+ * 			strip at row 0x44, behind mask 0x474, the bars of place 6 and
+ * 			any standing opponent car. At the end the overlap with the
+ * 			70-row car strip in CARS_BACKGROUND_PAGE at (200, 0x5e) is
+ * 			updated (FUN_1f38_975b).
+ *
+ ******************************************************************************/
+void cars_waitress(
+	int16_t leaving,
+	int16_t here
+) {
+	uint16_t sheetAt = (uint16_t)(CARS_WAITRESS_SHEETS + leaving * 6);
+	int16_t	 sheetId = exe_readS16(sheetAt);
+	int16_t	 sheetColumns = exe_readS16((uint16_t)(sheetAt + 2));
+	int16_t	 frameCount = exe_readS16((uint16_t)(sheetAt + 4));
+
+	const lib_Resource * pSheet = lib_get(lib_indexFromGameId(sheetId));
+
+	if (pSheet == NULL || sheetColumns <= 0 || frameCount <= 0) {
+		return;
+	}
+
+	int16_t sheetRows =
+		(int16_t)((frameCount + sheetColumns - 1) / sheetColumns);
+	int16_t		frameWidth = (int16_t)(pSheet->width / sheetColumns);
+	int16_t		frameHeight = (int16_t)(pSheet->height / sheetRows);
+	uint16_t	phasesAt = (uint16_t)(CARS_WAITRESS_PHASES + leaving * 16);
+	cars__Phase phases[4];
+
+	for (int index = 0; index < 4; index++) {
+		uint16_t entryAt = (uint16_t)(phasesAt + index * 4);
+
+		phases[index].count = exe_readS16(entryAt);
+		phases[index].step = (int8_t)*exe_data((uint16_t)(entryAt + 2));
+	}
+
+	int16_t carLeft = exe_readS16(STATE_CAR_LEFT);
+	int16_t carTop = exe_readS16(STATE_CAR_TOP);
+	int16_t visibleRows = exe_readS16(STATE_CAR_HEIGHT);
+	int		carFrame = ((uint16_t)carLeft >> 1) & 3;
+	int16_t overlapRows = (int16_t)(CARS_WAITRESS_BOTTOM - carTop + 1);
+	int16_t carWidth = cars__bodyWidth;
+
+	if (overlapRows > visibleRows) {
+		overlapRows = visibleRows;
+	}
+
+	if (carLeft + carWidth > CARS_WAITRESS_STRIP) {
+		carWidth = (int16_t)(CARS_WAITRESS_STRIP - carLeft);
+	}
+
+	exe_writeU16(CARS_TOP_CROP, 0);
+
+	int16_t column = leaving == 0 ? CARS_WAITRESS_START_X
+								  : CARS_WAITRESS_REST_X;
+	int		phaseIndex = 0;
+
+	while (phaseIndex < 3 && phases[phaseIndex].count == 0) {
+		phaseIndex++;
+	}
+
+	for (int step = 0; step < CARS_WAITRESS_STEPS; step++) {
+		int16_t frame = (int16_t)((int8_t)*exe_data(
+									  (uint16_t)(CARS_WAITRESS_FRAMES + step)
+								  ) -
+								  1);
+
+		plat_blit(
+			CARS_BACKGROUND_PAGE,
+			0,
+			0,
+			globals_displaySurface,
+			0,
+			CARS_WAITRESS_TOP,
+			CARS_WAITRESS_STRIP,
+			CARS_WAITRESS_HEIGHT
+		);
+		screen_drawSpritePart(
+			globals_displaySurface,
+			sheetId,
+			(int16_t)((frame % sheetColumns) * frameWidth),
+			(int16_t)((frame / sheetColumns) * frameHeight),
+			frameWidth,
+			frameHeight,
+			column,
+			CARS_WAITRESS_TOP,
+			false
+		);
+		plat_selectPage(globals_displaySurface);
+
+		if (cars__waitressFront != 0) {
+			plat_drawImage(cars__waitressFront, 0, CARS_WAITRESS_TOP);
+		}
+
+		if (globals_place == CARS_BARRED_PLACE) {
+			int16_t done = 0;
+
+			for (int gap = 0; gap <= CARS_GAP_COUNT; gap++) {
+				uint16_t gapAt = (uint16_t)(CARS_GAPS + gap * 4);
+				int16_t	 left = gap < CARS_GAP_COUNT ? exe_readS16(gapAt)
+													 : CARS_WAITRESS_STRIP;
+
+				if (left > done && done < CARS_WAITRESS_STRIP) {
+					int16_t right = left > CARS_WAITRESS_STRIP
+						? CARS_WAITRESS_STRIP
+						: left;
+
+					plat_blit(
+						CARS_BACKGROUND_PAGE,
+						done,
+						0,
+						globals_displaySurface,
+						done,
+						CARS_WAITRESS_TOP,
+						(int16_t)(right - done),
+						CARS_WAITRESS_HEIGHT
+					);
+				}
+
+				if (gap < CARS_GAP_COUNT) {
+					done = (int16_t)(left + exe_readS16((uint16_t)(gapAt + 2)));
+				}
+			}
+		}
+
+		if (step == CARS_WAITRESS_STEPS - 1) {
+			int16_t stripTop =
+				(int16_t)(CARS_WAITRESS_CAR_Y - (CARS_STRIP_HEIGHT - 1));
+
+			plat_copyRect(
+				globals_displaySurface,
+				CARS_BACKGROUND_PAGE,
+				CARS_WAITRESS_REST_X,
+				stripTop,
+				CARS_WAITRESS_PATCH_W,
+				(int16_t)(CARS_WAITRESS_BOTTOM - stripTop + 1)
+			);
+		}
+
+		if (here != 0 && overlapRows > 0 && carWidth > 0 &&
+			cars__frames[carFrame] != 0) {
+			plat_selectPage(globals_displaySurface);
+			plat_drawImagePart(
+				cars__frames[carFrame],
+				0,
+				0,
+				carWidth,
+				overlapRows,
+				carLeft,
+				carTop,
+				NULL
+			);
+		}
+
+		cursor_surfaceCopied(
+			0,
+			CARS_WAITRESS_TOP,
+			CARS_WAITRESS_STRIP,
+			CARS_WAITRESS_HEIGHT
+		);
+
+		uint32_t targetTick = globals_ticks + CARS_WAITRESS_TICKS;
+
+		while (globals_ticks < targetTick) {
+			dos_service();
+		}
+
+		phases[phaseIndex].count--;
+
+		while (phaseIndex < 3 && phases[phaseIndex].count == 0) {
+			phaseIndex++;
+		}
+
+		if (phases[phaseIndex].count != -1) {
+			column = (int16_t)(column + phases[phaseIndex].step);
+		}
+	}
+
+	plat_copyRect(
+		globals_displaySurface,
+		globals_workSurface,
+		0,
+		CARS_WAITRESS_TOP,
+		CARS_WAITRESS_STRIP,
+		CARS_WAITRESS_HEIGHT
+	);
+	plat_selectPage(globals_workSurface);
 }
 
 /** ****************************************************************************

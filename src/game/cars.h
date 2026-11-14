@@ -159,6 +159,11 @@ void cars_applySticker(
 	int16_t sticker
 );
 
+void cars_waitress(
+	int16_t leaving,
+	int16_t here
+);
+
 int16_t cars_isComplete(
 	uint16_t car,
 	int16_t	 checkRunningGear
