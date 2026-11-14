@@ -116,7 +116,7 @@ int8_t	globals_lastDirectionX;	   /**< DS:0x4730: last direction key. */
 int8_t	globals_lastDirectionY;	   /**< DS:0x4731: last direction key. */
 int16_t globals_keyboardBusy;	   /**< DS:0x4740: handler changing state. */
 int16_t globals_keyboardInstalled; /**< DS:0x5e0: KeyboardIsr installed. */
-uint8_t globals_soundOn;		   /**< DS:0x47ce: Ctrl toggles it. */
+uint8_t globals_soundOn = 1;	   /**< DS:0x47ce: Ctrl toggles it. */
 uint8_t globals_clickKeyFlag;	   /**< DS:0x47cd: click key; use unknown. */
 int16_t globals_clickKeyFlag2;	   /**< DS:0x47ee: click key; use unknown. */
 
@@ -168,7 +168,13 @@ int16_t globals_joystickDown;	 /**< DS:0x4728: Y above: down. */
 
 /* Music */
 
-int16_t globals_musicOn; /**< DS:0x58d0: music on ('M' toggles it). */
+int16_t	 globals_musicOn = 1;	   /**< DS:0x58d0: 'M' toggles it. */
+int16_t	 globals_musicPaused;	   /**< DS:0x58d8: off by music_pause. */
+int16_t	 globals_vibratoOn;		   /**< DS:0x72ec: vibrato enabled. */
+uint16_t globals_instrument;	   /**< DS:0x82c4: DS: instrument record. */
+int16_t	 globals_vibratoTicks = 1; /**< DS:0x6e2: ticks to the next step. */
+int16_t	 globals_vibratoDepth;	   /**< DS:0x6c52: depth of the note. */
+int16_t	 globals_vibratoDivisor;   /**< DS:0x6c54: last divisor written. */
 
 /* Video */
 

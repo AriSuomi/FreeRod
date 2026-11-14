@@ -29,6 +29,7 @@
 #include "game/input.h"
 #include "game/lib.h"
 #include "game/mover.h"
+#include "game/music.h"
 #include "game/random.h"
 #include "game/screen.h"
 #include "game/state.h"
@@ -129,7 +130,11 @@
 #define GARAGE_HOTSPOTS			 18		/**< Hotspots of the garage. */
 #define GARAGE_ELEMENTS			 0x9f4	/**< DS: element records. */
 #define GARAGE_ELEMENT_SIZE		 18		/**< Bytes of an element record. */
+#define GARAGE_ELEMENT_PICTURE	 4		/**< Element field: picture. */
 #define GARAGE_ELEMENT_ID		 6		/**< Element field: number. */
+#define GARAGE_MUSIC_HOTSPOT	 (-40)	/**< Number of the music hotspot. */
+#define GARAGE_MUSIC_ON			 0x2ba9 /**< DS: its picture, music on. */
+#define GARAGE_MUSIC_OFF		 0x2bab /**< DS: its picture, music off. */
 #define GARAGE_ELEMENT_LEFT		 8		/**< Element field: left edge. */
 #define GARAGE_ELEMENT_TOP		 10		/**< Element field: top edge. */
 #define GARAGE_ELEMENT_RIGHT	 12		/**< Element field: right edge. */
@@ -552,6 +557,7 @@ int16_t garage_show(
 		game_message(GARAGE_TEXT_BROKE);
 		globals_endFlags |= GARAGE_FLAG_BROKE;
 	} else {
+		music_pause(0);
 		input_flush();
 		result = ui_run(GARAGE_SCREEN);
 	}
@@ -717,6 +723,27 @@ static uint16_t garage__hotspot(
 	}
 
 	return 0;
+}
+
+/** ****************************************************************************
+ *
+ * \brief	Give the garage's music hotspot the picture for music on or off.
+ *
+ * \param	playing			The music plays.
+ *
+ * \details	Part of StopPlayer (1000:0d99) and ResumePlayer (1000:0dd8):
+ * 			the picture word of hotspot -40 becomes the word at DS:0x2ba9
+ * 			(playing) or DS:0x2bab (stopped).
+ *
+ ******************************************************************************/
+void garage_setMusicPicture(
+	bool playing
+) {
+	uint16_t element = garage__hotspot(GARAGE_MUSIC_HOTSPOT);
+	uint16_t picture =
+		exe_readU16(playing ? GARAGE_MUSIC_ON : GARAGE_MUSIC_OFF);
+
+	exe_writeU16((uint16_t)(element + GARAGE_ELEMENT_PICTURE), picture);
 }
 
 /** ****************************************************************************
@@ -3059,6 +3086,7 @@ static void garage__changeTires(
 	);
 	mover_setPhase(0, GARAGE_JACK_STEPS, 0, -1);
 	garage__runMover(GARAGE_STEP_RETRACES, NULL);
+	music_pause(1);
 
 	mover_Frame withTires = tires.car;
 
@@ -3087,6 +3115,7 @@ static void garage__changeTires(
 		GARAGE_JACK_COUNT - 1,
 		true
 	);
+	music_pause(0);
 
 	plat_copyRect(
 		globals_workSurface,

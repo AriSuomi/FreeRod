@@ -24,6 +24,7 @@
 #include "game/exe.h"
 #include "game/globals.h"
 #include "game/input.h"
+#include "game/music.h"
 #include "game/ui.h"
 #include "game/video.h"
 
@@ -361,8 +362,7 @@ static bool event__key(
 		}
 
 		if (globals_musicAvailable == 1) {
-			/* The music itself starts and stops in Phase 5. */
-			globals_musicOn = globals_musicOn == 0 ? 1 : 0;
+			music_toggle();
 		}
 
 	} else if (key > 0) {

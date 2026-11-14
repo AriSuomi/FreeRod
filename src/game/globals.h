@@ -129,7 +129,13 @@ extern int16_t globals_joystickDown;
 
 /* Music */
 
-extern int16_t globals_musicOn;
+extern int16_t	globals_musicOn;
+extern int16_t	globals_musicPaused;
+extern int16_t	globals_vibratoOn;
+extern uint16_t globals_instrument;
+extern int16_t	globals_vibratoTicks;
+extern int16_t	globals_vibratoDepth;
+extern int16_t	globals_vibratoDivisor;
 
 /* Video */
 

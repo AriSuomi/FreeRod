@@ -5,8 +5,8 @@
  * \brief	Timer, keyboard and mouse: the game's interrupt handlers and the
  * 			functions that read them.
  *
- * \details	Not ported yet: demo playback (DS:0x610), the music and the
- * 			PC speaker (Phase 5).
+ * \details	Not ported yet: demo playback (DS:0x610). The music is in
+ * 			music.c.
  *
  ******************************************************************************/
 
@@ -24,6 +24,7 @@
 #include "dos/dos.h"
 #include "game/anim.h"
 #include "game/globals.h"
+#include "game/music.h"
 
 /*******************************************************************************
 ;
@@ -97,7 +98,7 @@ static int16_t input__mouseStep(
  * 			the mean of three reads; a stick moved more than half of that
  * 			from the center counts as moved (globals_joystickLeft and the
  * 			others). Not ported: the values it stores at
- * 			DS:0x8ef6..0x8efc and DS:0x79b0..0x79e0 (use unknown), the
+ * 			DS:0x8ef6..0x8efc (use unknown; DS:0x79b0.. is music_init), the
  * 			critical-error handler (_harderr) and the speaker setup.
  *
  ******************************************************************************/
@@ -148,6 +149,7 @@ void input_init(void) {
 	}
 
 	dos_setTimerDivisor(INPUT_TIMER_DIVISOR);
+	music_init();
 	dos_setTimerHandler(input_timerInterrupt);
 	dos_setKeyboardHandler(input_keyboardInterrupt);
 	globals_keyboardInstalled = 1;
@@ -178,7 +180,7 @@ void input_shutdown(void) {
  * 			4th tick the original also called the BIOS handler. While the
  * 			cursor is shown, held direction keys move it one pixel per
  * 			tick, as does the joystick moved off its center. Not
- * 			ported: the speaker, demo playback and the music.
+ * 			ported: demo playback. The music is music_timerTick.
  *
  ******************************************************************************/
 void input_timerInterrupt(void) {
@@ -192,6 +194,8 @@ void input_timerInterrupt(void) {
 		globals_biosCountdown = INPUT_BIOS_EVERY;
 		globals_biosTicks++;
 	}
+
+	music_timerTick();
 
 	if (globals_cursorShown <= 0 || globals_timerBusy) {
 		return;
@@ -522,7 +526,7 @@ void input_waitTicks(
 		int8_t key = input_readKey();
 
 		if (key == 'M') {
-			globals_musicOn = globals_musicOn == 0 ? 1 : 0;
+			music_toggle();
 		} else if (key == '\r' || key == 0x1b) {
 			return;
 		}

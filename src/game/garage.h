@@ -15,6 +15,7 @@
 ;
 ;-----------------------------------------------------------------------------*/
 
+#include <stdbool.h>
 #include <stdint.h>
 
 /*******************************************************************************
@@ -49,6 +50,10 @@
 
 int16_t garage_show(
 	int16_t mode
+);
+
+void garage_setMusicPicture(
+	bool playing
 );
 
 void garage_clearCarName(void);

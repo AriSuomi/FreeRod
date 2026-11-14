@@ -40,6 +40,7 @@
 #include "game/globals.h"
 #include "game/hood.h"
 #include "game/lib.h"
+#include "game/music.h"
 #include "game/race.h"
 #include "game/random.h"
 #include "game/screen.h"
@@ -462,6 +463,7 @@ void street_visit(void) {
 	cursor_forget();
 	cursor_set(1);
 	video_showPalette();
+	music_pause(0);
 
 	if (random_next(100) < STREET_ARRIVAL) {
 		street__figure();
@@ -1357,6 +1359,7 @@ static int16_t street__challenge(void) {
 				exe_writeU16(STREET_TALLY_A, exe_readU16(STREET_TALLY_A) - 3);
 				exe_writeU16(STREET_TALLY_B, exe_readU16(STREET_TALLY_B) - 2);
 			} else if (!drag) {
+				music_pause(0);
 				ui_close(1);
 				street__win();
 				globals_endFlags |= STREET_END_WINNER;
@@ -1368,6 +1371,7 @@ static int16_t street__challenge(void) {
 		}
 
 		if (result == RACE_JAILED) {
+			music_pause(0);
 			ui_close(1);
 			street__sentence();
 			cursor_set(CURSOR_HIDE_NOW);
@@ -1406,6 +1410,7 @@ static int16_t street__challenge(void) {
 			return STREET_RACE_LEFT;
 		}
 
+		music_pause(0);
 		screen_drawResource(STREET_PICTURE, -1);
 		ui_statusTitle(exe_text(exe_readU16(STATE_STATUS_TITLE)));
 		video_showPalette();

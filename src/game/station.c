@@ -35,6 +35,7 @@
 #include "game/game.h"
 #include "game/globals.h"
 #include "game/lib.h"
+#include "game/music.h"
 #include "game/screen.h"
 #include "game/state.h"
 #include "game/ui.h"
@@ -311,6 +312,7 @@ void station_visit(void) {
 		pVisit->tireTable
 	);
 	cursor_set(CURSOR_SHOW_NOW);
+	music_pause(0);
 
 	pVisit->bucket = screen_saveRect(
 		STATION_BUCKET_X,

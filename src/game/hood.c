@@ -45,6 +45,7 @@
 #include "game/garage.h"
 #include "game/globals.h"
 #include "game/lib.h"
+#include "game/music.h"
 #include "game/random.h"
 #include "game/screen.h"
 #include "game/state.h"
@@ -1196,6 +1197,7 @@ static void hood__tune(
 	ui_open(HOOD_TUNE_SCREEN);
 	screen_drawResourceAt(HOOD_GAUGE, HOOD_BAY_LEFT, HOOD_BAY_TOP, -1);
 	anim_start(ANIM_GAUGE);
+	music_stop();
 	globals_musicAvailable = HOOD_MUSIC_TUNING;
 
 	do {
@@ -1237,6 +1239,7 @@ static void hood__tune(
 	} while (choice != HOOD_TUNE_DONE);
 
 	globals_musicAvailable = 1;
+	music_resume();
 	anim_stop(ANIM_GAUGE);
 
 	uint16_t spent =

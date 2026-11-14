@@ -11,8 +11,8 @@
  * 			(TimerIsr2 1000:238c with FUN_1000_1aad, 1b27, 2374), which
  * 			drives the player's car in a race. The road's state is
  * 			roadstate.c, its pictures roadpic.c, its view roadview.c; the
- * 			sounds are not ported yet: drive__notPorted stands in for
- * 			each and logs it once. FUN_1f38_1094 (drive_crashMark) draws
+ * 			engine and drive sounds are not ported yet (Phase 5).
+ * 			FUN_1f38_1094 (drive_crashMark) draws
  * 			the wheel's mark on the picture of a crash.
  *
  * 			Layout. On EGA the original splits the screen (line compare
@@ -44,6 +44,7 @@
 #include "game/globals.h"
 #include "game/input.h"
 #include "game/lib.h"
+#include "game/music.h"
 #include "game/race.h"
 #include "game/random.h"
 #include "game/road.h"
@@ -245,12 +246,6 @@
 ;
 ;-----------------------------------------------------------------------------*/
 
-/** What the port lacks; indexes of drive__missingNames. */
-typedef enum drive__missing_tag {
-	DRIVE__SOUND_OFF, /**< FUN_1f38_7001. */
-	DRIVE__MISSING_COUNT
-} drive__Missing;
-
 /** A rectangle of the screen. */
 typedef struct drive__box_tag {
 	int16_t left;	/**< Left edge. */
@@ -280,10 +275,6 @@ typedef struct drive__controls_tag {
 ;	S T A T I C   F U N C T I O N S
 ;
 ;-----------------------------------------------------------------------------*/
-
-static void drive__notPorted(
-	drive__Missing which
-);
 
 static void drive__setSurfaces(
 	int16_t mode,
@@ -465,14 +456,6 @@ static int16_t drive__raceEnd(void);
 ;
 ;-----------------------------------------------------------------------------*/
 
-/** What drive__notPorted logs, by drive__Missing. */
-static const char * const drive__missingNames[DRIVE__MISSING_COUNT] = {
-	"stopping the sound (FUN_1f38_7001)",
-};
-
-/** Which of them were logged already. */
-static bool drive__logged[DRIVE__MISSING_COUNT];
-
 /*******************************************************************************
 ;
 ;	F U N C T I O N   D E F I N I T I O N S
@@ -592,26 +575,6 @@ int16_t drive_run(void) {
 	drive__setSurfaces(DRIVE_SURFACES_NORMAL, display, view);
 
 	return result;
-}
-
-/** ****************************************************************************
- *
- * \brief	Stand in for a part of driving that is not ported yet.
- *
- * \param	which			The part.
- *
- * \details	Not part of the original. Logs the part the first time.
- *
- ******************************************************************************/
-static void drive__notPorted(
-	drive__Missing which
-) {
-	if (drive__logged[which]) {
-		return;
-	}
-
-	drive__logged[which] = true;
-	plat_log("driving: %s is not ported yet", drive__missingNames[which]);
 }
 
 /** ****************************************************************************
@@ -1691,7 +1654,7 @@ static int16_t drive__race(void) {
  *
  * \details	The start both halves of FUN_1000_8ea8 share: DS:0x5d6 is
  * 			cleared, the sound is stopped unless the car drives home
- * 			after a race (DS:0x51ec; FUN_1f38_7001, not ported), the
+ * 			after a race (DS:0x51ec; music_pause), the
  * 			timer handler of a drive is installed (drive__timerOn),
  * 			waiting input is dropped, DS:0x79a6 becomes 1 and the text
  * 			is shown.
@@ -1703,7 +1666,7 @@ static void drive__begin(
 	exe_writeU16(DRIVE_UNKNOWN_5D6, 0);
 
 	if (exe_readS16(DRIVE_HOME) == 0) {
-		drive__notPorted(DRIVE__SOUND_OFF);
+		music_pause(1);
 	}
 
 	drive__timerOn();

@@ -27,6 +27,7 @@
 #include "game/fame.h"
 #include "game/garage.h"
 #include "game/hood.h"
+#include "game/music.h"
 #include "game/globals.h"
 #include "game/hotdata.h"
 #include "game/opening.h"
@@ -174,6 +175,8 @@ bool game_skipOpening;
  *
  ******************************************************************************/
 int16_t game_start(void) {
+	music_startTrack(MUSIC_FIRST_WORD, MUSIC_START_DELAY);
+
 	if (!game_skipOpening) {
 		opening_show();
 	}
@@ -434,6 +437,10 @@ static bool game__play(
 		bool	noCar = exe_readU16(STATE_CAR) == 0;
 		bool	stored = exe_readU16(STATE_STORED_CARS) != 0;
 
+		if (choice != 0) {
+			music_pause(0);
+		}
+
 		if (choice == GARAGE_GAME_END) {
 			if (globals_endFlags == FAME_END_SUMMER) {
 				fame_summerOver();
@@ -610,7 +617,7 @@ static bool game__play(
 				break;
 
 			case GAME_CHOICE_MUSIC:
-				globals_musicOn = globals_musicOn == 0 ? 1 : 0;
+				music_toggle();
 				break;
 
 			default:
