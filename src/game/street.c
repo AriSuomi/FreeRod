@@ -10,8 +10,7 @@
  * 			21 is a car without a driver that drives by, or offers the
  * 			last race when no opponent is left. Not ported yet: the race
  * 			(driving; its result is in race.c, meeting an opponent in
- * 			challenge.c), looking under an opponent's hood
- * 			(FUN_1000_a265) and the sounds. The
+ * 			challenge.c) and the sounds. The
  * 			outcomes of a race are here too: the sentence
  * 			(FUN_1000_b08c), the winner (FUN_1000_a544) and the event
  * 			on arriving (FUN_1000_a416).
@@ -28,6 +27,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "game/calendar.h"
 #include "game/challenge.h"
@@ -38,6 +38,7 @@
 #include "game/exe.h"
 #include "game/game.h"
 #include "game/globals.h"
+#include "game/hood.h"
 #include "game/lib.h"
 #include "game/race.h"
 #include "game/random.h"
@@ -86,6 +87,26 @@
 #define STREET_NEXT_WAIT  0x118
 #define STREET_SHORT_WAIT 5
 #define STREET_LOOK_TIME  0x111 /**< Game clock: looking under a hood. */
+
+/*
+ * Looking under the opponent's hood (FUN_1000_a265). The original builds the
+ * opponent's car record and its seven part records in its stack frame; the
+ * stack is DS:0x8f10..0x990f (SS:SP of the header), unused in the port, so
+ * the records are put there.
+ */
+#define STREET_HOOD_CAR 0x9800 /**< Car record of the opponent's car. */
+
+/** Its seven part records. */
+#define STREET_HOOD_PARTS  (STREET_HOOD_CAR + STATE_CAR_SIZE)
+
+#define STREET_HOOD_LEFT   0x60	  /**< Saved rectangle: left. */
+#define STREET_HOOD_TOP	   9	  /**< Saved rectangle: top. */
+#define STREET_HOOD_WIDTH  200	  /**< Saved rectangle: width. */
+#define STREET_HOOD_HEIGHT 0x8f	  /**< Saved rectangle: height. */
+#define STREET_HOOD_SCREEN 0x18	  /**< Screen while the bay is shown. */
+#define STREET_HOOD_TEXT   0x521c /**< Status text under the hood. */
+#define STREET_HOOD_TICKS  800	  /**< Ticks the bay is shown at most. */
+#define STREET_HOOD_WAIT   3000	  /**< Ticks of one event_wait. */
 
 /*
  * What the player clicked (hotspots of screen 0x25, Bob's Drive-In).
@@ -394,6 +415,8 @@ static void street__showCar(
 
 static void street__carLeaves(void);
 
+static void street__underHood(void);
+
 static int16_t street__challenge(void);
 
 static void street__listKnown(
@@ -421,9 +444,8 @@ static int16_t street__chooseKnown(
  * 			summer ends. Meeting an opponent is in challenge.c, the
  * 			result of a race in race.c. Not ported: driving (after a
  * 			race was agreed the opponent drives off unless
- * 			--race-result gives the outcome), looking under
- * 			the hood (FUN_1000_a265, only logged; the clock still moves)
- * 			and the sound (FUN_1f38_7001).
+ * 			--race-result gives the outcome) and the sound
+ * 			(FUN_1f38_7001).
  *
  ******************************************************************************/
 void street_visit(void) {
@@ -550,10 +572,7 @@ void street_visit(void) {
 					street__carLeaves();
 					looks = 0;
 				} else {
-					plat_log(
-						"looking under the hood (FUN_1000_a265) is not "
-						"ported yet"
-					);
+					street__underHood();
 					looks++;
 					globals_gameTime += STREET_LOOK_TIME;
 				}
@@ -2018,6 +2037,62 @@ static void street__carLeaves(void) {
 		0,
 		(uint16_t)(STATE_TIRE_SPRITES + exe_readS16(STATE_GARAGE_TIRES) * 8)
 	);
+}
+
+/** ****************************************************************************
+ *
+ * \brief	Look under the hood of the opponent's car.
+ *
+ * \details	Port of FUN_1000_a265. A car of the opponent's model
+ * 			(DS:0x7648) is made with the parts the model comes with
+ * 			(cars_create on a record of its own, which draws the paint
+ * 			and +0x20 from the random numbers as for a bought car) and
+ * 			its engine bay is shown over the street (hood_open shows a car
+ * 			other than the one in use and returns). The bay stays for 800
+ * 			ticks or until an event of screen 0x18. The original builds
+ * 			the records in its stack frame without clearing them; the port
+ * 			keeps them at STREET_HOOD_CAR and clears them first. Not
+ * 			ported: the temporary memory bookkeeping (FUN_1f38_a07e) and
+ * 			releasing the bay (DS:0x8232 = 0; the port's bay is the page
+ * 			SCREEN_BAY_PAGE).
+ *
+ ******************************************************************************/
+static void street__underHood(void) {
+	int saved = screen_saveRect(
+		STREET_HOOD_LEFT,
+		STREET_HOOD_TOP,
+		STREET_HOOD_WIDTH,
+		STREET_HOOD_HEIGHT
+	);
+
+	uint16_t car = STREET_HOOD_CAR;
+
+	memset(exe_data(car), 0, STATE_CAR_SIZE + 7 * STATE_PART_SIZE);
+	exe_writeU16((uint16_t)(car + STATE_CAR_GEARBOX), STREET_HOOD_PARTS);
+	exe_writeU16(
+		(uint16_t)(car + STATE_CAR_TIRES),
+		(uint16_t)(STREET_HOOD_PARTS + STATE_PART_SIZE)
+	);
+
+	/* Engine, manifold and the three carburetors take the other five. */
+	for (int slot = 0; slot < 5; slot++) {
+		exe_writeU16(
+			(uint16_t)(car + STATE_CAR_ENGINE + slot * 2),
+			(uint16_t)(STREET_HOOD_PARTS + (2 + slot) * STATE_PART_SIZE)
+		);
+	}
+
+	cars_create(exe_readS16(STREET_MODEL), 0, car);
+	hood_open(car);
+	ui_status(-1, exe_text(STREET_HOOD_TEXT), 0);
+	ui_open(STREET_HOOD_SCREEN);
+	globals_timeout = globals_ticks + STREET_HOOD_TICKS;
+
+	while (event_wait(STREET_HOOD_WAIT) == 0) {
+	}
+
+	screen_restoreRect(saved, true);
+	ui_close(1);
 }
 
 /** ****************************************************************************
