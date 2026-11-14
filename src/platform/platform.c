@@ -2,7 +2,7 @@
  *
  * \file	platform.c
  *
- * \brief	Platform layer implemented with SDL2 and SDL2_image.
+ * \brief	Platform layer implemented with SDL3 and SDL3_image.
  *
  * \details	Owns the window, the palette, the pages with their image and
  * 			pixel layers, input and time. See platform.h for the layer
@@ -22,8 +22,9 @@
  */
 #define SDL_MAIN_HANDLED
 
-#include <SDL.h>
-#include <SDL_image.h>
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_main.h>
+#include <SDL3_image/SDL_image.h>
 #include <time.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -209,6 +210,12 @@ static void plat__drawImageLayer(
 
 static void plat__drawCursor(void);
 
+static void plat__renderCopy(
+	SDL_Texture *	 pTexture,
+	const SDL_Rect * pSource,
+	const SDL_Rect * pTarget
+);
+
 static SDL_Rect plat__windowRectangle(void);
 
 static void plat__setPointer(
@@ -343,17 +350,12 @@ bool plat_init(
 
 	plat__renderScale = renderScale;
 
-	Uint32 subsystems = SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_EVENTS;
+	SDL_InitFlags subsystems = SDL_INIT_VIDEO | SDL_INIT_EVENTS;
 
 	SDL_SetMainReady();
 
-	if (SDL_Init(subsystems) != 0) {
+	if (!SDL_Init(subsystems)) {
 		SDL_LogError(LOG_APP, "SDL_Init: %s", SDL_GetError());
-		return false;
-	}
-
-	if ((IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG) == 0) {
-		SDL_LogError(LOG_APP, "IMG_Init: %s", IMG_GetError());
 		return false;
 	}
 
@@ -412,7 +414,6 @@ void plat_shutdown(void) {
 	plat__renderer = NULL;
 	plat__window = NULL;
 
-	IMG_Quit();
 	SDL_Quit();
 }
 
@@ -680,7 +681,7 @@ void plat_blit(
 		draw.clip.x += shiftLeft;
 		draw.clip.y += shiftTop;
 
-		if (SDL_IntersectRect(&draw.clip, &area, &draw.clip)) {
+		if (SDL_GetRectIntersection(&draw.clip, &area, &draw.clip)) {
 			plat__blitDraws[copied] = draw;
 			copied++;
 		}
@@ -1357,7 +1358,7 @@ void plat_drawImagePart(
 		SDL_Rect limit = { pClip[0], pClip[1], pClip[2], pClip[3] };
 		SDL_Rect both;
 
-		if (!SDL_IntersectRect(&draw.clip, &limit, &both)) {
+		if (!SDL_GetRectIntersection(&draw.clip, &limit, &both)) {
 			return;
 		}
 
@@ -1414,7 +1415,11 @@ void plat_setCursor(
 	bool shown = image != 0;
 
 	if (shown != (plat__cursorImage != 0)) {
-		SDL_ShowCursor(shown ? SDL_DISABLE : SDL_ENABLE);
+		if (shown) {
+			SDL_HideCursor();
+		} else {
+			SDL_ShowCursor();
+		}
 	}
 
 	plat__cursorImage = image;
@@ -1449,7 +1454,7 @@ void plat_present(void) {
 	plat__drawImageLayer(&plat__pages[0]);
 
 	plat__uploadPixelLayer(&plat__pages[0]);
-	SDL_RenderCopy(plat__renderer, plat__pixelTexture, NULL, NULL);
+	SDL_RenderTexture(plat__renderer, plat__pixelTexture, NULL, NULL);
 	plat__drawCursor();
 	SDL_SetRenderTarget(plat__renderer, NULL);
 
@@ -1457,7 +1462,7 @@ void plat_present(void) {
 
 	SDL_SetRenderDrawColor(plat__renderer, 0, 0, 0, 255);
 	SDL_RenderClear(plat__renderer);
-	SDL_RenderCopy(plat__renderer, plat__scene, NULL, &target);
+	plat__renderCopy(plat__scene, NULL, &target);
 	SDL_RenderPresent(plat__renderer);
 }
 
@@ -1474,13 +1479,20 @@ bool plat_poll(void) {
 
 	while (SDL_PollEvent(&event)) {
 		switch (event.type) {
-			case SDL_QUIT:
+			case SDL_EVENT_QUIT:
 				return false;
 
-			case SDL_KEYDOWN:
-			case SDL_KEYUP: {
-				int	 key = plat__translateKey(event.key.keysym.sym);
-				bool pressed = event.type == SDL_KEYDOWN;
+			case SDL_EVENT_KEY_DOWN:
+			case SDL_EVENT_KEY_UP: {
+				/*
+				 * Without modifiers, like SDL2: letters stay lower case
+				 * and keypad keys stay keypad keys with Num Lock on.
+				 */
+				SDL_Scancode scancode = event.key.scancode;
+				SDL_Keycode	 keycode =
+					SDL_GetKeyFromScancode(scancode, SDL_KMOD_NONE, true);
+				int	 key = plat__translateKey(keycode);
+				bool pressed = event.type == SDL_EVENT_KEY_DOWN;
 
 				if (key != PLAT_KEY_NONE) {
 					plat__pushKey(key, pressed);
@@ -1489,12 +1501,12 @@ bool plat_poll(void) {
 				break;
 			}
 
-			case SDL_MOUSEMOTION:
-				plat__setPointer(event.motion.x, event.motion.y);
+			case SDL_EVENT_MOUSE_MOTION:
+				plat__setPointer((int)event.motion.x, (int)event.motion.y);
 				break;
 
-			case SDL_MOUSEBUTTONDOWN:
-			case SDL_MOUSEBUTTONUP: {
+			case SDL_EVENT_MOUSE_BUTTON_DOWN:
+			case SDL_EVENT_MOUSE_BUTTON_UP: {
 				unsigned button = 0;
 
 				if (event.button.button == SDL_BUTTON_LEFT) {
@@ -1503,9 +1515,9 @@ bool plat_poll(void) {
 					button = PLAT_BUTTON_RIGHT;
 				}
 
-				plat__setPointer(event.button.x, event.button.y);
+				plat__setPointer((int)event.button.x, (int)event.button.y);
 
-				if (event.type == SDL_MOUSEBUTTONDOWN) {
+				if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
 					plat__buttonsHeld |= button;
 					plat__buttonsPushed |= button;
 				} else {
@@ -1658,7 +1670,7 @@ uint32_t plat_timerTicks(void) {
  *
  ******************************************************************************/
 uint32_t plat_ticksMs(void) {
-	return SDL_GetTicks();
+	return (uint32_t)SDL_GetTicks();
 }
 
 /** ****************************************************************************
@@ -1687,15 +1699,17 @@ void plat_delayMs(
 bool plat_saveScreenshot(
 	const char * pPath
 ) {
-	SDL_Surface * pSurface = SDL_CreateRGBSurfaceWithFormat(
-		0,
-		PLAT_WIDTH,
-		PLAT_HEIGHT,
-		8,
-		SDL_PIXELFORMAT_INDEX8
-	);
+	SDL_Surface * pSurface =
+		SDL_CreateSurface(PLAT_WIDTH, PLAT_HEIGHT, SDL_PIXELFORMAT_INDEX8);
 
 	if (!pSurface) {
+		return false;
+	}
+
+	SDL_Palette * pPalette = SDL_CreateSurfacePalette(pSurface);
+
+	if (!pPalette) {
+		SDL_DestroySurface(pSurface);
 		return false;
 	}
 
@@ -1708,7 +1722,7 @@ bool plat_saveScreenshot(
 		colors[index].a = 255;
 	}
 
-	SDL_SetPaletteColors(pSurface->format->palette, colors, 0, 256);
+	SDL_SetPaletteColors(pPalette, colors, 0, 256);
 	SDL_LockSurface(pSurface);
 
 	for (int row = 0; row < PLAT_HEIGHT; row++) {
@@ -1720,9 +1734,9 @@ bool plat_saveScreenshot(
 
 	SDL_UnlockSurface(pSurface);
 
-	bool saved = SDL_SaveBMP(pSurface, pPath) == 0;
+	bool saved = SDL_SaveBMP(pSurface, pPath);
 
-	SDL_FreeSurface(pSurface);
+	SDL_DestroySurface(pSurface);
 
 	return saved;
 }
@@ -1742,35 +1756,29 @@ bool plat_saveScreenshot(
 bool plat_saveSceneScreenshot(
 	const char * pPath
 ) {
-	int			  width = PLAT_WIDTH * plat__renderScale;
-	int			  height = PLAT_HEIGHT * plat__renderScale;
-	SDL_Surface * pSurface = SDL_CreateRGBSurfaceWithFormat(
-		0,
-		width,
-		height,
-		32,
-		SDL_PIXELFORMAT_ARGB8888
-	);
+	SDL_SetRenderTarget(plat__renderer, plat__scene);
+
+	SDL_Surface * pRead = SDL_RenderReadPixels(plat__renderer, NULL);
+
+	SDL_SetRenderTarget(plat__renderer, NULL);
+
+	if (!pRead) {
+		return false;
+	}
+
+	/* The renderer may read in another format; keep the BMP 32-bit ARGB. */
+	SDL_Surface * pSurface =
+		SDL_ConvertSurface(pRead, SDL_PIXELFORMAT_ARGB8888);
+
+	SDL_DestroySurface(pRead);
 
 	if (!pSurface) {
 		return false;
 	}
 
-	SDL_SetRenderTarget(plat__renderer, plat__scene);
+	bool saved = SDL_SaveBMP(pSurface, pPath);
 
-	int result = SDL_RenderReadPixels(
-		plat__renderer,
-		NULL,
-		SDL_PIXELFORMAT_ARGB8888,
-		pSurface->pixels,
-		pSurface->pitch
-	);
-
-	SDL_SetRenderTarget(plat__renderer, NULL);
-
-	bool saved = result == 0 && SDL_SaveBMP(pSurface, pPath) == 0;
-
-	SDL_FreeSurface(pSurface);
+	SDL_DestroySurface(pSurface);
 
 	return saved;
 }
@@ -1807,13 +1815,12 @@ static bool plat__createWindow(
 	const char * pTitle,
 	int			 windowScale
 ) {
+	/* SDL3 centers new windows. */
 	plat__window = SDL_CreateWindow(
 		pTitle,
-		SDL_WINDOWPOS_CENTERED,
-		SDL_WINDOWPOS_CENTERED,
 		PLAT_WIDTH * windowScale,
 		240 * windowScale,
-		SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI
+		SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY
 	);
 
 	if (!plat__window) {
@@ -1821,14 +1828,15 @@ static bool plat__createWindow(
 		return false;
 	}
 
-	Uint32 rendererFlags = SDL_RENDERER_ACCELERATED |
-		SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_TARGETTEXTURE;
-
-	plat__renderer = SDL_CreateRenderer(plat__window, -1, rendererFlags);
+	plat__renderer = SDL_CreateRenderer(plat__window, NULL);
 
 	if (!plat__renderer) {
 		SDL_LogError(LOG_APP, "SDL_CreateRenderer: %s", SDL_GetError());
 		return false;
+	}
+
+	if (!SDL_SetRenderVSync(plat__renderer, 1)) {
+		SDL_LogWarn(LOG_APP, "SDL_SetRenderVSync: %s", SDL_GetError());
 	}
 
 	return true;
@@ -1864,8 +1872,8 @@ static bool plat__createLayerTextures(void) {
 	}
 
 	SDL_SetTextureBlendMode(plat__pixelTexture, SDL_BLENDMODE_BLEND);
-	SDL_SetTextureScaleMode(plat__pixelTexture, SDL_ScaleModeNearest);
-	SDL_SetTextureScaleMode(plat__scene, SDL_ScaleModeLinear);
+	SDL_SetTextureScaleMode(plat__pixelTexture, SDL_SCALEMODE_NEAREST);
+	SDL_SetTextureScaleMode(plat__scene, SDL_SCALEMODE_LINEAR);
 
 	return true;
 }
@@ -1938,11 +1946,11 @@ static SDL_Texture * plat__loadReplacement(
 	SDL_Texture * pTexture =
 		SDL_CreateTextureFromSurface(plat__renderer, pSurface);
 
-	SDL_FreeSurface(pSurface);
+	SDL_DestroySurface(pSurface);
 
 	if (pTexture) {
 		SDL_SetTextureBlendMode(pTexture, SDL_BLENDMODE_BLEND);
-		SDL_SetTextureScaleMode(pTexture, SDL_ScaleModeLinear);
+		SDL_SetTextureScaleMode(pTexture, SDL_SCALEMODE_LINEAR);
 		SDL_Log("replacement: %s", path);
 	}
 
@@ -2018,13 +2026,13 @@ static SDL_Texture * plat__originalTexture(
 		}
 
 		SDL_SetTextureBlendMode(pImage->pOriginal, SDL_BLENDMODE_BLEND);
-		SDL_SetTextureScaleMode(pImage->pOriginal, SDL_ScaleModeNearest);
+		SDL_SetTextureScaleMode(pImage->pOriginal, SDL_SCALEMODE_NEAREST);
 	}
 
 	void * pTexels;
 	int	   pitch;
 
-	if (SDL_LockTexture(pImage->pOriginal, NULL, &pTexels, &pitch) == 0) {
+	if (SDL_LockTexture(pImage->pOriginal, NULL, &pTexels, &pitch)) {
 		plat__convertToArgb(
 			pImage->pPixels,
 			pImage->width,
@@ -2056,7 +2064,7 @@ static bool plat__clipToScreen(
 ) {
 	const SDL_Rect screen = { 0, 0, PLAT_WIDTH, PLAT_HEIGHT };
 
-	return SDL_IntersectRect(pRectangle, &screen, pRectangle) == SDL_TRUE;
+	return SDL_GetRectIntersection(pRectangle, &screen, pRectangle);
 }
 
 /** ****************************************************************************
@@ -2200,7 +2208,9 @@ static void plat__mergeDraw(
 
 			if (sameImage &&
 				plat__unionIsRectangle(&pEarlier->clip, &pDraw->clip)) {
-				SDL_UnionRect(&pEarlier->clip, &pDraw->clip, &pEarlier->clip);
+				SDL_Rect * pClip = &pEarlier->clip;
+
+				SDL_GetRectUnion(pClip, &pDraw->clip, pClip);
 
 				int moved = pPage->drawCount - index - 1;
 
@@ -2211,7 +2221,7 @@ static void plat__mergeDraw(
 				break;
 			}
 
-			if (SDL_HasIntersection(&pEarlier->clip, &pDraw->clip)) {
+			if (SDL_HasRectIntersection(&pEarlier->clip, &pDraw->clip)) {
 				break;
 			}
 		}
@@ -2262,7 +2272,7 @@ static void plat__uploadPixelLayer(
 	void * pTexels;
 	int	   pitch;
 
-	if (SDL_LockTexture(plat__pixelTexture, NULL, &pTexels, &pitch) != 0) {
+	if (!SDL_LockTexture(plat__pixelTexture, NULL, &pTexels, &pitch)) {
 		return;
 	}
 
@@ -2311,10 +2321,8 @@ static void plat__drawImageLayer(
 			continue;
 		}
 
-		int textureWidth;
-		int textureHeight;
-
-		SDL_QueryTexture(pTexture, NULL, NULL, &textureWidth, &textureHeight);
+		int textureWidth = pTexture->w;
+		int textureHeight = pTexture->h;
 
 		SDL_Rect source = {
 			(pDraw->clip.x - pDraw->left) * textureWidth / pImage->width,
@@ -2329,7 +2337,7 @@ static void plat__drawImageLayer(
 			pDraw->clip.h * scale,
 		};
 
-		SDL_RenderCopy(plat__renderer, pTexture, &source, &target);
+		plat__renderCopy(pTexture, &source, &target);
 	}
 }
 
@@ -2356,10 +2364,8 @@ static void plat__drawCursor(void) {
 		return;
 	}
 
-	int textureWidth;
-	int textureHeight;
-
-	SDL_QueryTexture(pTexture, NULL, NULL, &textureWidth, &textureHeight);
+	int textureWidth = pTexture->w;
+	int textureHeight = pTexture->h;
 
 	const int scale = plat__renderScale;
 	SDL_Rect  source = {
@@ -2375,7 +2381,42 @@ static void plat__drawCursor(void) {
 		plat__cursorRows * scale,
 	};
 
-	SDL_RenderCopy(plat__renderer, pTexture, &source, &target);
+	plat__renderCopy(pTexture, &source, &target);
+}
+
+/** ****************************************************************************
+ *
+ * \brief	Copy part of a texture to the current render target.
+ *
+ * \param	pTexture		Texture to copy from.
+ * \param	pSource			Part of the texture in texels, or NULL for all.
+ * \param	pTarget			Where it goes in target pixels, or NULL for all.
+ *
+ * \details	SDL3 takes float rectangles; the layers work in whole pixels.
+ *
+ ******************************************************************************/
+static void plat__renderCopy(
+	SDL_Texture *	 pTexture,
+	const SDL_Rect * pSource,
+	const SDL_Rect * pTarget
+) {
+	SDL_FRect source;
+	SDL_FRect target;
+
+	if (pSource) {
+		SDL_RectToFRect(pSource, &source);
+	}
+
+	if (pTarget) {
+		SDL_RectToFRect(pTarget, &target);
+	}
+
+	SDL_RenderTexture(
+		plat__renderer,
+		pTexture,
+		pSource ? &source : NULL,
+		pTarget ? &target : NULL
+	);
 }
 
 /** ****************************************************************************
@@ -2390,7 +2431,7 @@ static SDL_Rect plat__windowRectangle(void) {
 	int		 outputHeight;
 	SDL_Rect rectangle;
 
-	SDL_GetRendererOutputSize(plat__renderer, &outputWidth, &outputHeight);
+	SDL_GetRenderOutputSize(plat__renderer, &outputWidth, &outputHeight);
 
 	if (outputWidth * 3 > outputHeight * 4) {
 		rectangle.h = outputHeight;
@@ -2427,7 +2468,7 @@ static void plat__setPointer(
 	int outputHeight;
 
 	SDL_GetWindowSize(plat__window, &windowWidth, &windowHeight);
-	SDL_GetRendererOutputSize(plat__renderer, &outputWidth, &outputHeight);
+	SDL_GetRenderOutputSize(plat__renderer, &outputWidth, &outputHeight);
 
 	SDL_Rect picture = plat__windowRectangle();
 
@@ -2488,11 +2529,11 @@ static int plat__translateKey(
 	SDL_Keycode keycode
 ) {
 	if (keycode > 0 && keycode < 128) {
-		return keycode;
+		return (int)keycode;
 	}
 
 	if (keycode >= SDLK_F1 && keycode <= SDLK_F10) {
-		return PLAT_KEY_F1 + (keycode - SDLK_F1);
+		return PLAT_KEY_F1 + (int)(keycode - SDLK_F1);
 	}
 
 	switch (keycode) {

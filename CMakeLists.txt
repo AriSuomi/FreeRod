@@ -4,8 +4,8 @@ project(FreeRod LANGUAGES C)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
-find_package(SDL2 CONFIG REQUIRED)
-find_package(SDL2_image CONFIG REQUIRED)
+find_package(SDL3 CONFIG REQUIRED)
+find_package(SDL3_image CONFIG REQUIRED)
 
 add_executable(freerod
     src/main.c
@@ -52,10 +52,10 @@ add_executable(freerod
 
 target_include_directories(freerod PRIVATE src)
 
-# No SDL2main: platform.c defines SDL_MAIN_HANDLED and calls SDL_SetMainReady.
+# No SDL_main: platform.c defines SDL_MAIN_HANDLED and calls SDL_SetMainReady.
 target_link_libraries(freerod PRIVATE
-    $<IF:$<TARGET_EXISTS:SDL2::SDL2>,SDL2::SDL2,SDL2::SDL2-static>
-    $<IF:$<TARGET_EXISTS:SDL2_image::SDL2_image>,SDL2_image::SDL2_image,SDL2_image::SDL2_image-static>
+    SDL3::SDL3
+    SDL3_image::SDL3_image
 )
 
 if(MSVC)

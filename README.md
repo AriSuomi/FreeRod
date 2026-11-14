@@ -1,6 +1,6 @@
 # FreeRod
 
-An open-source native C11 + SDL2 reimplementation of the 1989 DOS classic *Street Rod*.
+An open-source native C11 + SDL3 reimplementation of the 1989 DOS classic *Street Rod*.
 
 FreeRod is an independent open-source reimplementation. It is not affiliated with, endorsed by, or connected to California Dreams, Logicware, or the current rights holders of *Street Rod*. A legal copy of the original DOS game data files is required to play.
 
@@ -24,7 +24,7 @@ Still in progress:
 - Original DOS *Street Rod* data files (`Sr.exe`, `Lib1`, `Lib2`, `Hot_data`, and optionally `Hall_dat` / `HOTROD*.SAV`)
 - C11 compiler
 - CMake 3.21+
-- `SDL2` and `SDL2_image`
+- `SDL3` and `SDL3_image` (with PNG support)
 
 ## Building
 
@@ -61,11 +61,11 @@ cmake --preset mingw-clang
 cmake --build --preset mingw-clang-debug
 ```
 
-The executable is written to `build\<msvc|gcc|clang>\<Debug|Release>\freerod.exe` with the SDL2 DLLs copied alongside it.
+The executable is written to `build\<msvc|gcc|clang>\<Debug|Release>\freerod.exe` with the SDL3 DLLs copied alongside it.
 
 ### Linux / macOS (GCC or Clang + CMake)
 
-With `SDL2` and `SDL2_image` development packages available to CMake, use the `gcc` or `clang` preset (or plain CMake):
+With `SDL3` and `SDL3_image` development packages (SDL3_image built with PNG support) available to CMake, use the `gcc` or `clang` preset (or plain CMake):
 
 ```sh
 cmake --preset gcc

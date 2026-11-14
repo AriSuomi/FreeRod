@@ -2,7 +2,7 @@
  *
  * \file	platform.h
  *
- * \brief	Platform layer: the only part of FreeRod that talks to SDL2.
+ * \brief	Platform layer: the only part of FreeRod that talks to SDL3.
  *
  * \details	It emulates what the DOS game had: a 320x200 screen with two
  * 			pages of video memory, a 256-entry palette (like the VGA DAC), a
