@@ -450,20 +450,20 @@ static bool main__equalsIgnoringCase(
  *
  * \details	Port of the switch loop of main (1000:066f). "1" chose one
  * 			floppy drive for OpenLibraries; the port has no floppies and
- * 			ignores it.
+ * 			ignores it. "demo" started the self-playing mode, which is
+ * 			not ported (its random clicker FUN_1000_1bae is missing), so
+ * 			it is ignored too and globals_demoSwitch stays 0.
  *
  ******************************************************************************/
 static bool main__parseSwitch(
 	const char * pArgument
 ) {
-	if (strcmp(pArgument, "1") == 0) {
+	if (strcmp(pArgument, "1") == 0 || main__equalsIgnoringCase(pArgument, "demo")) {
 		return true;
 	}
 
 	if (main__equalsIgnoringCase(pArgument, "nomouse")) {
 		globals_mouseAllowed = 0;
-	} else if (main__equalsIgnoringCase(pArgument, "demo")) {
-		globals_demoSwitch = 1;
 	} else if (main__equalsIgnoringCase(pArgument, "auto")) {
 		globals_autoSwitch = 1;
 	} else if (main__equalsIgnoringCase(pArgument, "nouemem")) {
