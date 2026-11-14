@@ -32,6 +32,7 @@
 #include "game/globals.h"
 #include "game/random.h"
 #include "game/road.h"
+#include "game/roadpic.h"
 #include "game/roadstate.h"
 #include "game/state.h"
 #include "game/ui.h"
@@ -73,7 +74,7 @@
 #define DRIVING_ROAD_END	 0x3fc	/**< Place where the other races end. */
 #define DRIVING_POLICE_MODEL 0x19	/**< Police car model for chases. */
 #define DRIVING_POLICE_COLOR 5		/**< Paint index for police chase. */
-#define DRIVING_SPRITE_WORDS 0x18	/**< Copied police sprite words. */
+#define DRIVING_POLICE_CARS	 12		/**< Police pictures copied (0x18 words). */
 #define DRIVING_FLAG_LOST	 0x01	/**< Race flag: crossed too late. */
 #define DRIVING_FLAG_CRASH	 0x03	/**< Race flag: crashed + lost. */
 #define DRIVING_FLAG_POLICE	 0x41	/**< Race flag: stopped by police. */
@@ -125,8 +126,7 @@
 #define DRIVING_RIVAL_RANGE	   0x6cb8 /**< s16: opponent range index. */
 #define DRIVING_RIVAL_REVS	   0x6cba /**< s16: top revs less 100 * skill. */
 #define DRIVING_UNKNOWN_70C0   0x70c0 /**< s16: road left edge +4 ahead. */
-#define DRIVING_CRASHED		   0x72f2 /**< s16: 1 on roadside crash (3645). */
-#define DRIVING_POLICE_SPRITES 0x7526 /**< Police sprites loaded by 3645. */
+#define DRIVING_CRASHED		   0x72f2 /**< s16: 1: ran into the opponent. */
 #define DRIVING_POLICE_AT	   0x755a /**< s16: place police may appear. */
 #define DRIVING_AVERAGE_SPEED  0x7644 /**< s16: average speed (mph). */
 #define DRIVING_RIVAL_MODEL	   0x7648 /**< s16: the opponent's car model. */
@@ -162,7 +162,6 @@
 #define DRIVING_COVERED		   0x82c8 /**< s16: percent covered (max 99). */
 #define DRIVING_PLAYER_AHEAD   0x8632 /**< s16: 1 player beat/tied rival. */
 #define DRIVING_WEAVE_READY	   0x8648 /**< s16: 1 opponent may change side. */
-#define DRIVING_OPP_SPRITES	   0x8ace /**< Active opponent sprite table. */
 #define DRIVING_CARS_NEAR	   0x8bc2 /**< s16: 1 when 3645 sees overlap. */
 #define DRIVING_RACE_TIME	   0x8bc4 /**< float: elapsed seconds in race. */
 #define DRIVING_ROAD_RIGHT	   0x8bd0 /**< s16: road right edge at player. */
@@ -1547,7 +1546,8 @@ static void driving__advanceOpponent(void) {
  *
  * \details	Port of FUN_1000_d992. Prepares the police model (0x19), matches its
  * 			gear to the current opponent speed, switches race paint to police
- * 			colors (5), copies the 24 police sprite words, and stores 0.6 and
+ * 			colors (5), copies the pictures 0..11 of the police car over the
+ * 			opponent's (DS:0x7526 to DS:0x8ace), and stores 0.6 and
  * 			0.8 of the cruiser's top speed.
  *
  ******************************************************************************/
@@ -1565,13 +1565,8 @@ static void driving__spawnPolice(void) {
 	driving__matchGear(speed, DRIVING_OPPONENT);
 	driving_setRaceColors(DRIVING_POLICE_COLOR);
 
-	for (int word = 0; word < DRIVING_SPRITE_WORDS; word++) {
-		uint16_t offset = (uint16_t)(word * 2);
-
-		exe_writeU16(
-			(uint16_t)(DRIVING_OPP_SPRITES + offset),
-			exe_readU16((uint16_t)(DRIVING_POLICE_SPRITES + offset))
-		);
+	for (int position = 0; position < DRIVING_POLICE_CARS; position++) {
+		roadpic_set.pOpponent[position] = roadpic_set.pPolice[position];
 	}
 
 	int16_t	 topSpeed = cars_maxSpeed(DRIVING_POLICE_MODEL);

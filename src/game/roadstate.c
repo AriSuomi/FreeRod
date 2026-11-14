@@ -131,24 +131,6 @@ static void roadstate__edges(
 	int16_t * pRight
 );
 
-static int16_t roadstate__aheadColumn(
-	int16_t distance,
-	int16_t worldX,
-	int16_t turn
-);
-
-static int16_t roadstate__behindColumn(
-	int16_t distance,
-	int16_t worldX,
-	int16_t turn
-);
-
-static int16_t roadstate__behindRow(
-	int16_t distance,
-	int16_t worldY,
-	int16_t rise
-);
-
 static void roadstate__projectAhead(
 	int16_t row,
 	int16_t distance
@@ -629,7 +611,7 @@ static void roadstate__edges(
  * \details	Port of FUN_3645_176f.
  *
  ******************************************************************************/
-static int16_t roadstate__aheadColumn(
+int16_t roadstate_aheadColumn(
 	int16_t distance,
 	int16_t worldX,
 	int16_t turn
@@ -687,7 +669,7 @@ int16_t roadstate_aheadRow(
  * \details	Port of FUN_3645_17ed.
  *
  ******************************************************************************/
-static int16_t roadstate__behindColumn(
+int16_t roadstate_behindColumn(
 	int16_t distance,
 	int16_t worldX,
 	int16_t turn
@@ -716,7 +698,7 @@ static int16_t roadstate__behindColumn(
  * \details	Port of FUN_3645_1828.
  *
  ******************************************************************************/
-static int16_t roadstate__behindRow(
+int16_t roadstate_behindRow(
 	int16_t distance,
 	int16_t worldY,
 	int16_t rise
@@ -762,12 +744,12 @@ static void roadstate__projectAhead(
 	roadstate_ahead.road[row] =
 		roadstate_aheadRow(distance, ROADSTATE_GROUND, rise);
 	roadstate_ahead.right[row] =
-		roadstate__aheadColumn(distance, right, turn);
-	roadstate_ahead.left[row] = roadstate__aheadColumn(distance, left, turn);
+		roadstate_aheadColumn(distance, right, turn);
+	roadstate_ahead.left[row] = roadstate_aheadColumn(distance, left, turn);
 	roadstate_ahead.rightLine[row] =
-		roadstate__aheadColumn(distance, ROADSTATE_RIGHT_LINE, turn);
+		roadstate_aheadColumn(distance, ROADSTATE_RIGHT_LINE, turn);
 	roadstate_ahead.leftLine[row] =
-		roadstate__aheadColumn(distance, ROADSTATE_LEFT_LINE, turn);
+		roadstate_aheadColumn(distance, ROADSTATE_LEFT_LINE, turn);
 
 	if (high) {
 		roadstate_ahead.eye[row] =
@@ -801,19 +783,19 @@ static void roadstate__projectBehind(
 
 	roadstate__edges(flags, &left, &right);
 	roadstate_behind.road[row] =
-		roadstate__behindRow(distance, ROADSTATE_GROUND, rise);
+		roadstate_behindRow(distance, ROADSTATE_GROUND, rise);
 	roadstate_behind.right[row] =
-		roadstate__behindColumn(distance, right, turn);
+		roadstate_behindColumn(distance, right, turn);
 	roadstate_behind.left[row] =
-		roadstate__behindColumn(distance, left, turn);
+		roadstate_behindColumn(distance, left, turn);
 	roadstate_behind.rightLine[row] =
-		roadstate__behindColumn(distance, ROADSTATE_RIGHT_LINE, turn);
+		roadstate_behindColumn(distance, ROADSTATE_RIGHT_LINE, turn);
 	roadstate_behind.leftLine[row] =
-		roadstate__behindColumn(distance, ROADSTATE_LEFT_LINE, turn);
+		roadstate_behindColumn(distance, ROADSTATE_LEFT_LINE, turn);
 
 	if (high) {
 		roadstate_behind.eye[row] =
-			roadstate__behindRow(distance, ROADSTATE_EYE_HEIGHT, rise);
+			roadstate_behindRow(distance, ROADSTATE_EYE_HEIGHT, rise);
 	}
 }
 

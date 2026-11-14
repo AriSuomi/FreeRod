@@ -7,13 +7,13 @@
  * \details	A frame of the road as seen through the windshield
  * 			(FUN_3645_4b8c): the backdrop (FUN_3645_2982), then the rows
  * 			from the farthest to the nearest with their ground
- * 			(roaddraw_ground) and the objects at the roadside and
- * 			across the road (FUN_3645_3ccc), the two pictures over the
+ * 			(roaddraw_ground), the objects at the roadside and
+ * 			across the road (FUN_3645_3ccc) and in a race the
+ * 			opponent's car (roadcar.c), the two pictures over the
  * 			view (FUN_3645_3e3c) and the start lights of a race
  * 			(FUN_3645_3dc3); then the view is shown (roaddraw_show).
- * 			The opponent's car (FUN_3645_3f8d, step 14p) and the mirror
- * 			(FUN_3645_43fd, step 14q) are not ported yet. All
- * 			arithmetic is 16-bit, as in the original.
+ * 			The mirror (FUN_3645_43fd, step 14q) is not ported yet.
+ * 			All arithmetic is 16-bit, as in the original.
  *
  * 			The port takes the path of the adapters without a split
  * 			screen (see roaddraw.c): DS:0x5e3e stays 1, so everything
@@ -38,6 +38,7 @@
 #include "game/drive.h"
 #include "game/exe.h"
 #include "game/road.h"
+#include "game/roadcar.h"
 #include "game/roaddraw.h"
 #include "game/roadpic.h"
 #include "game/roadstate.h"
@@ -54,8 +55,10 @@
 #define ROADVIEW__LINE_WIDTHS 0x5e6a /**< s16 by row: center line width. */
 #define ROADVIEW__CREST		  0x6e04 /**< s16: highest road row on screen. */
 #define ROADVIEW__CREST_ROW	  0x6e06 /**< s16: row index where it is. */
+#define ROADVIEW__TILE		  0x7d30 /**< s16: tile of the player. */
 #define ROADVIEW__HEADING	  0x7d3c /**< s16: curve the view is turned to. */
 #define ROADVIEW__SLOPE		  0x7d3e /**< s16: slope at the player's tile. */
+#define ROADVIEW__RIVAL_TILE  0x7e8a /**< s16: tile of the opponent. */
 #define ROADVIEW__AUTO_MAY	  0x8228 /**< s16: set once "Go !" shows. */
 #define ROADVIEW__RACING	  0x8aca /**< s16: 1 in a race, 0 in a cruise. */
 
@@ -183,14 +186,20 @@ static void roadview__startLights(void);
  * 			below 6, which rows with objects precede unless five
  * 			rows in a row are not drawn.
  *
- * 			Not ported yet: the opponent's car (FUN_3645_3f8d, on the
- * 			row of its tile and after the rows when it is on the
- * 			player's tile; step 14p) and the mirror (FUN_3645_43fd,
- * 			before the pictures; step 14q).
+ * 			In a race the opponent's car (roadcar_draw) is drawn
+ * 			after the row of its tile, or after all rows when it is
+ * 			on the player's tile. The tiles are read once; in the
+ * 			original nothing between the rows changes them.
+ *
+ * 			Not ported yet: the mirror (FUN_3645_43fd, before the
+ * 			pictures; step 14q).
  *
  ******************************************************************************/
 void roadview_draw(void) {
 	int16_t kept = 0;
+	bool	racing = exe_readS16(ROADVIEW__RACING) != 0;
+	int16_t playerTile = exe_readS16(ROADVIEW__TILE);
+	int16_t rivalTile = exe_readS16(ROADVIEW__RIVAL_TILE);
 
 	roaddraw_clipView();
 	roadview__backdrop();
@@ -208,6 +217,14 @@ void roadview_draw(void) {
 			distance < ROADVIEW__OBJECT_ROWS) {
 			kept = roadview__objects(distance);
 		}
+
+		if (racing && rivalTile - playerTile == distance) {
+			roadcar_draw();
+		}
+	}
+
+	if (racing && rivalTile == playerTile) {
+		roadcar_draw();
 	}
 
 	roadview__overlays();

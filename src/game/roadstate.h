@@ -82,7 +82,25 @@ void roadstate_point(
 	int16_t tile
 );
 
+int16_t roadstate_aheadColumn(
+	int16_t distance,
+	int16_t worldX,
+	int16_t turn
+);
+
 int16_t roadstate_aheadRow(
+	int16_t distance,
+	int16_t worldY,
+	int16_t rise
+);
+
+int16_t roadstate_behindColumn(
+	int16_t distance,
+	int16_t worldX,
+	int16_t turn
+);
+
+int16_t roadstate_behindRow(
 	int16_t distance,
 	int16_t worldY,
 	int16_t rise

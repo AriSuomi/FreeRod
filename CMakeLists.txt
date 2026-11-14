@@ -39,6 +39,7 @@ add_executable(freerod
     src/game/roaddraw.c
     src/game/roadpic.c
     src/game/roadstate.c
+    src/game/roadcar.c
     src/game/roadview.c
     src/game/save.c
     src/game/screen.c
