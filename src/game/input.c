@@ -23,6 +23,7 @@
 #include "game/input.h"
 
 #include "dos/dos.h"
+#include "game/anim.h"
 #include "game/globals.h"
 
 /*******************************************************************************
@@ -256,12 +257,14 @@ int8_t input_readKey(void) {
  * \brief	Drop pending input: wait until no key has come for 10 ticks,
  * 			then clear clicks and held directions.
  *
- * \details	Port of FlushInput (1000:0e24), without the reset of the timed
- * 			event queue at DS:0x566 (the queue is not ported yet). The
- * 			deadline of event_wait (globals_timeout) is cleared.
+ * \details	Port of FlushInput (1000:0e24). It first empties the timed
+ * 			event queue (anim_resetQueue). The deadline of event_wait
+ * 			(globals_timeout) is cleared.
  *
  ******************************************************************************/
 void input_flush(void) {
+	anim_resetQueue();
+
 	uint32_t quietUntil = globals_ticks + INPUT_QUIET_TICKS;
 
 	while (globals_ticks < quietUntil) {

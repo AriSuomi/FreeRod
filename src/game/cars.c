@@ -1988,6 +1988,48 @@ void cars_drawOnWork(void) {
 
 /** ****************************************************************************
  *
+ * \brief	Draw the resting car again on the work surface, only inside a
+ * 			rectangle.
+ *
+ * \param	left			Left edge of the rectangle.
+ * \param	top				Top edge.
+ * \param	width			Its width.
+ * \param	height			Its height.
+ *
+ * \details	Like cars_drawOnWork, clipped. Stands in for the original's
+ * 			drawing of the car into the frames of an animation that
+ * 			plays behind it (the code at 1f38:1b4a, with FUN_1f38_a198).
+ *
+ ******************************************************************************/
+void cars_drawOnWorkPart(
+	int16_t left,
+	int16_t top,
+	int16_t width,
+	int16_t height
+) {
+	int16_t carLeft = exe_readS16(STATE_CAR_LEFT);
+	int		frame = ((uint16_t)carLeft >> 1) & 3;
+	int		clip[4] = { left, top, width, height };
+
+	if (cars__frames[frame] == 0 || cars__bodyWidth <= 0) {
+		return;
+	}
+
+	plat_selectPage(globals_workSurface);
+	plat_drawImagePart(
+		cars__frames[frame],
+		0,
+		0,
+		cars__bodyWidth,
+		exe_readS16(STATE_CAR_HEIGHT),
+		carLeft,
+		exe_readS16(STATE_CAR_TOP),
+		clip
+	);
+}
+
+/** ****************************************************************************
+ *
  * \brief	Draw columns of the foreground the car moves behind.
  *
  * \param	left			First column.

@@ -275,8 +275,7 @@ int16_t globals_cursorDrawnY; /**< DS:0x6c48: row the cursor is at. */
 uint8_t globals_lastClick;	  /**< DS:0x6c4e: left click flag, last. */
 
 /**
- * DS:0x56c: tick of the next timed event (queue at DS:0x566; used by
- * animations, not ported yet).
+ * DS:0x56c: tick of the next timed event (queue at DS:0x566, game/anim.c).
  */
 uint32_t globals_timedEventTime = GLOBALS_NO_EVENT;
 

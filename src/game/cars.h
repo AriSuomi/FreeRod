@@ -150,6 +150,13 @@ void cars_restoreDoor(void);
 
 void cars_drawOnWork(void);
 
+void cars_drawOnWorkPart(
+	int16_t left,
+	int16_t top,
+	int16_t width,
+	int16_t height
+);
+
 void cars_drawForeground(
 	int16_t left,
 	int16_t right

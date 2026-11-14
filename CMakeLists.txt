@@ -11,6 +11,7 @@ add_executable(freerod
     src/main.c
     src/dos/dos.c
     src/dos/fpu.c
+    src/game/anim.c
     src/game/calendar.c
     src/game/cars.c
     src/game/challenge.c

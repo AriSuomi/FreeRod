@@ -36,6 +36,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "game/anim.h"
 #include "game/cars.h"
 #include "game/cursor.h"
 #include "game/event.h"
@@ -1176,10 +1177,10 @@ static void hood__placeHotspots(void) {
  * 			(0x60, 9)): the needle (8 x 0xb at (0x30, 0) of 0x433) is at
  * 			row 0x4b + 2 * the car's byte +0x20, which the buttons move
  * 			between -8 and 4. The time spent costs 3 clock ticks per
- * 			BIOS tick, at most 0x444. The image 0x433 comes from the
- * 			first step of animation 8 of the timed event queue, which
- * 			the original starts here (FUN_1f38_1dc9) and stops at the
- * 			end (FUN_1f38_19ec). Not ported: that animation, the music
+ * 			BIOS tick, at most 0x444. Animation 8 (columns of 0x433 at
+ * 			(0xa0, 0x34), whose first step loads the image the original
+ * 			takes the needle from) runs while the gauge is open. Not
+ * 			ported: the music
  * 			stopped and started again (FUN_1000_0d99, 0dd8), and the
  * 			engine sound on the PC speaker (its pitch follows the
  * 			setting).
@@ -1194,6 +1195,7 @@ static void hood__tune(
 
 	ui_open(HOOD_TUNE_SCREEN);
 	screen_drawResourceAt(HOOD_GAUGE, HOOD_BAY_LEFT, HOOD_BAY_TOP, -1);
+	anim_start(ANIM_GAUGE);
 	globals_musicAvailable = HOOD_MUSIC_TUNING;
 
 	do {
@@ -1235,6 +1237,7 @@ static void hood__tune(
 	} while (choice != HOOD_TUNE_DONE);
 
 	globals_musicAvailable = 1;
+	anim_stop(ANIM_GAUGE);
 
 	uint16_t spent =
 		(uint16_t)(((uint16_t)globals_biosTicks - start) *

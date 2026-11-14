@@ -27,6 +27,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "game/anim.h"
 #include "game/cars.h"
 #include "game/cursor.h"
 #include "game/event.h"
@@ -262,12 +263,10 @@ static uint8_t station__maskPixels[STATION_PUMP_PIXELS];
  * 			every 0x4c ticks or counts the idle checks. After 40 idle
  * 			checks the attendant comes: the price doubles and he fills
  * 			the tank. Hanging up the nozzle after buying gas (or without
- * 			money) leaves (FUN_1000_b717). Not ported: the animations of
- * 			the timed event queue (FUN_1f38_1dc9 starts one, 1e72 asks
- * 			whether it runs, 19ec stops it; FUN_1000_4fca runs one to
- * 			its end): 2 while gas flows, 3 the attendant getting up,
- * 			whose last picture station__attendantStands draws; and
- * 			FUN_1f38_7613 (probably the pump's sound).
+ * 			money) leaves (FUN_1000_b717). Animation 2 (the pump's meter)
+ * 			runs while gas flows, animation 3 (the attendant getting up)
+ * 			plays before full service. Not ported: FUN_1f38_7613 (the
+ * 			pump's sound, started and stopped with animation 2).
  *
  ******************************************************************************/
 void station_visit(void) {
@@ -418,6 +417,10 @@ void station_visit(void) {
 				}
 
 				if (pVisit->hand == STATION_HAND_EMPTY) {
+					if (anim_isRunning(ANIM_GAS_METER)) {
+						anim_stop(ANIM_GAS_METER);
+					}
+
 					pVisit->nozzleInTank = false;
 					station__drawScene(pVisit);
 					pVisit->hand = STATION_HAND_NOZZLE;
@@ -442,6 +445,7 @@ void station_visit(void) {
 				station__drawScene(pVisit);
 				pVisit->hand = STATION_HAND_EMPTY;
 				cursor_set(STATION_HAND_EMPTY);
+				anim_start(ANIM_GAS_METER);
 				station__setHotspots(station__hotspotsPumping);
 				station__setTimeout(STATION_FILL_TICKS);
 				pVisit->pumping = true;
@@ -463,6 +467,7 @@ void station_visit(void) {
 
 					station__setHotspots(station__hotspotsOff);
 					pVisit->price <<= 1;
+					anim_play(ANIM_ATTENDANT);
 					station__attendantStands(pVisit);
 					game_message(STATION_TEXT_FULL_SERVICE);
 					pVisit->selfService = false;
@@ -483,6 +488,7 @@ void station_visit(void) {
 					station__drawScene(pVisit);
 					pVisit->hand = STATION_HAND_EMPTY;
 					cursor_set(STATION_HAND_EMPTY);
+					anim_start(ANIM_GAS_METER);
 					pVisit->pumping = true;
 					station__setTimeout(STATION_FILL_TICKS);
 					break;
@@ -503,6 +509,10 @@ void station_visit(void) {
 				);
 
 				if (pVisit->fills == 0 || station__money() < pVisit->price) {
+					if (anim_isRunning(ANIM_GAS_METER)) {
+						anim_stop(ANIM_GAS_METER);
+					}
+
 					if (!pVisit->selfService) {
 						station__leave(pVisit);
 						return;
@@ -953,12 +963,12 @@ static void station__setHotspots(
  *
  * \param	pVisit			The visit.
  *
- * \details	Stands in for animation 3 (FUN_1000_4fca(3)), the attendant
- * 			getting up, which is not ported: its last picture (the
- * 			standing pose, columns 0x60.. of 0x4d1 at (200, 81), as in
- * 			FUN_1000_b717 and in the original's screen) goes into the
- * 			background behind the car, and the car, the pump and the
- * 			filler are drawn again in front of it.
+ * \details	Port only, after animation 3 (the attendant getting up): its
+ * 			last picture (the standing pose, columns 0x60.. of 0x4d1 at
+ * 			(200, 81), as in FUN_1000_b717) also goes into the
+ * 			background behind the car, so that redrawing the car keeps
+ * 			him, and the car, the pump and the filler are drawn again in
+ * 			front of it.
  *
  ******************************************************************************/
 static void station__attendantStands(

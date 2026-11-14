@@ -19,6 +19,7 @@
 #include <string.h>
 
 #include "dos/dos.h"
+#include "game/anim.h"
 #include "game/cursor.h"
 #include "game/exe.h"
 #include "game/globals.h"
@@ -124,8 +125,9 @@ static void event__screenStatus(
  * \details	Port of WaitEvent (1000:1417). While waiting it moves the
  * 			cursor by the mouse (the timer handler moves it by keys),
  * 			redraws it, and shows the text of the hotspot under it in the
- * 			status line. Key code 0x7f ends the game. Not ported: the
- * 			timed event queue (DS:0x566, animations) and starting or
+ * 			status line. Key code 0x7f ends the game. A due event of the
+ * 			timed queue runs its animation on (anim_timedEvent). Not
+ * 			ported: starting or
  * 			stopping the music when M is pressed (FUN_1000_0dd8,
  * 			FUN_1000_0d99; Phase 5). The port tells the mouse driver
  * 			where the cursor is, so that the cursor follows the host
@@ -163,10 +165,7 @@ int16_t event_wait(
 			return result;
 		}
 
-		if (globals_timedEventTime <= globals_ticks) {
-			/* Timed events (animations) are not ported yet. */
-			globals_timedEventTime = GLOBALS_NO_EVENT;
-		}
+		anim_timedEvent();
 
 		event__pollMouse();
 
