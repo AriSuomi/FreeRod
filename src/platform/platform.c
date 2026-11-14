@@ -586,7 +586,7 @@ void plat_fillRect(
 
 /** ****************************************************************************
  *
- * \brief	Copy a rectangle from one page to another.
+ * rief	Copy a rectangle from one page to another.
  *
  * \param	sourcePage		Page to copy from.
  * \param	destinationPage	Page to copy to.
@@ -595,10 +595,7 @@ void plat_fillRect(
  * \param	width			Width in game pixels.
  * \param	height			Height in game pixels.
  *
- * \details	Copies the pixel layer and the visible parts of the images,
- * 			so replacement pictures stay pictures. Afterwards the rectangle
- * 			on the destination shows exactly what the source shows there.
- * 			The rectangle is clipped to the screen.
+ * \details	plat_blit to the same place.
  *
  ******************************************************************************/
 void plat_copyRect(
@@ -609,13 +606,56 @@ void plat_copyRect(
 	int width,
 	int height
 ) {
+	plat_blit(sourcePage, left, top, destinationPage, left, top, width, height);
+}
+
+/** ****************************************************************************
+ *
+ * rief	Copy a rectangle from one page to another place on another
+ * 			page.
+ *
+ * \param	sourcePage		Page to copy from.
+ * \param	sourceLeft		Left edge on the source in game pixels.
+ * \param	sourceTop		Top edge on the source in game pixels.
+ * \param	destinationPage	Page to copy to.
+ * \param	left			Left edge on the destination.
+ * \param	top				Top edge on the destination.
+ * \param	width			Width in game pixels.
+ * \param	height			Height in game pixels.
+ *
+ * \details	Copies the pixel layer and the visible parts of the images,
+ * 			so replacement pictures stay pictures. Afterwards the rectangle
+ * 			on the destination shows exactly what the source shows in its
+ * 			rectangle. Both rectangles are clipped to the screen. Nothing
+ * 			is copied within one page.
+ *
+ ******************************************************************************/
+void plat_blit(
+	int sourcePage,
+	int sourceLeft,
+	int sourceTop,
+	int destinationPage,
+	int left,
+	int top,
+	int width,
+	int height
+) {
 	bool valid = sourcePage >= 0 && sourcePage < PLAT_PAGE_COUNT &&
 		destinationPage >= 0 && destinationPage < PLAT_PAGE_COUNT;
-	SDL_Rect area = { left, top, width, height };
+	int		 shiftLeft = left - sourceLeft;
+	int		 shiftTop = top - sourceTop;
+	SDL_Rect area = { sourceLeft, sourceTop, width, height };
 
 	if (!valid || sourcePage == destinationPage) {
 		return;
 	}
+
+	if (!plat__clipToScreen(&area)) {
+		return;
+	}
+
+	area.x += shiftLeft;
+	area.y += shiftTop;
 
 	if (!plat__clipToScreen(&area)) {
 		return;
@@ -627,12 +667,10 @@ void plat_copyRect(
 	plat__dropCovered(pDestination, &area);
 
 	for (int row = area.y; row < area.y + area.h; row++) {
-		int offset = row * PLAT_WIDTH + area.x;
+		int output = row * PLAT_WIDTH + area.x;
+		int input = (row - shiftTop) * PLAT_WIDTH + area.x - shiftLeft;
 
-		uint8_t *		pOutput = pDestination->pixels + offset;
-		const uint8_t * pInput = pSource->pixels + offset;
-
-		memcpy(pOutput, pInput, area.w);
+		memcpy(pDestination->pixels + output, pSource->pixels + input, area.w);
 	}
 
 	/*
@@ -642,6 +680,11 @@ void plat_copyRect(
 	 */
 	for (int index = 0; index < pSource->drawCount; index++) {
 		plat__Draw draw = pSource->draws[index];
+
+		draw.left += shiftLeft;
+		draw.top += shiftTop;
+		draw.clip.x += shiftLeft;
+		draw.clip.y += shiftTop;
 
 		if (SDL_IntersectRect(&draw.clip, &area, &draw.clip)) {
 			plat__addDraw(pDestination, &draw);
@@ -2495,8 +2538,10 @@ static int plat__translateKey(
  *
  * \param	id				Handle of the image.
  *
- * etval	true	A page has a draw of the image.
- * etval	false	No page draws it.
+ *
+etval	true	A page has a draw of the image.
+ *
+etval	false	No page draws it.
  *
  ******************************************************************************/
 static bool plat__isDrawn(

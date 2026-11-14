@@ -9,8 +9,8 @@
  * 			the mirror (FUN_3645_1e9e), the move to the next tile
  * 			(FUN_3645_1efc) and the check of the car against the
  * 			roadside (3645:206b). All arithmetic is 16-bit, as in the
- * 			original. Drawing the view (FUN_3645_4b8c) and choosing the
- * 			page (FUN_3645_224e) are not ported yet (steps 14m to 14o).
+ * 			original. Drawing the view (FUN_3645_4b8c) is not ported
+ * 			yet (step 14o).
  *
  ******************************************************************************/
 
@@ -29,6 +29,7 @@
 #include "game/exe.h"
 #include "game/globals.h"
 #include "game/random.h"
+#include "game/roaddraw.h"
 #include "game/road.h"
 #include "platform/platform.h"
 
@@ -233,9 +234,9 @@ void roadstate_point(
  * 			A race starts at tile 200, a cruise at the start tile of
  * 			its town (DS:0x284, globals_place; any other value keeps
  * 			the tile). The car is on the wide road at X 0xa00, looking
- * 			straight. Then the opponent's position is cleared and the
- * 			first frame is made (FUN_3645_1e9e). FUN_3645_224e, which
- * 			picks the page to draw to, is not ported.
+ * 			straight. Then the opponent's position is cleared, the
+ * 			page to draw to is chosen (roaddraw_selectPage) and the
+ * 			first frame is made (FUN_3645_1e9e).
  *
  ******************************************************************************/
 void roadstate_start(void) {
@@ -279,6 +280,7 @@ void roadstate_start(void) {
 
 	roadstate__write(ROADSTATE_LAST_SPOT, 0);
 	roadstate__write(ROADSTATE_CAR_SPOT, 0);
+	roaddraw_selectPage();
 	roadstate__show();
 }
 

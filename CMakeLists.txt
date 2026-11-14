@@ -36,6 +36,7 @@ add_executable(freerod
     src/game/question.c
     src/game/random.c
     src/game/road.c
+    src/game/roaddraw.c
     src/game/roadpic.c
     src/game/roadstate.c
     src/game/save.c

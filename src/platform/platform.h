@@ -164,6 +164,17 @@ void plat_copyRect(
 	int height
 );
 
+void plat_blit(
+	int sourcePage,
+	int sourceLeft,
+	int sourceTop,
+	int destinationPage,
+	int left,
+	int top,
+	int width,
+	int height
+);
+
 void plat_readPixels(
 	int		  page,
 	int		  left,

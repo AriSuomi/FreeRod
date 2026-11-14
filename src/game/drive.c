@@ -43,6 +43,7 @@
 #include "game/race.h"
 #include "game/random.h"
 #include "game/road.h"
+#include "game/roaddraw.h"
 #include "game/roadpic.h"
 #include "game/roadstate.h"
 #include "game/screen.h"
@@ -475,6 +476,7 @@ int16_t drive_run(void) {
 	screen_resetSaved();
 	video_blankPalette();
 	drive__drawDashboard(display, view, automatic);
+	roaddraw_view = view;
 	roadpic_load(view);
 	drive__drawShifter(
 		display,
