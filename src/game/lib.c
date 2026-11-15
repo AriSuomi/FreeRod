@@ -253,7 +253,7 @@ bool lib_decodePixels(
 	int planeSize = bytesPerRow * height;
 	int planeCount = pResource->flag == LIB_FLAG_MONO ? 1 : 4;
 
-	uint8_t * pPlanar = malloc((size_t)planeSize * 4);
+	uint8_t * pPlanar = calloc((size_t)planeSize, 4);
 
 	if (!pPlanar) {
 		return false;
