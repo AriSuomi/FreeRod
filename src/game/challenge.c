@@ -152,6 +152,12 @@
 ;
 ;-----------------------------------------------------------------------------*/
 
+/**
+ * Test switch (--accept-bets): the opponent takes every bet. Not in the
+ * original.
+ */
+bool challenge_testAccept;
+
 /*******************************************************************************
 ;
 ;	S T A T I C   F U N C T I O N S
@@ -474,7 +480,10 @@ static int16_t challenge__classGroup(
  * 			column picks the percent chance from DS:0x8dd8. It grows by a
  * 			quarter for each race the opponent won more than lost, by 6
  * 			or 4 when the car has body mods (bits 0..4 of
- * 			STATE_CAR_FLAGS; 4 with bit 0) and in the demo.
+ * 			STATE_CAR_FLAGS; 4 with bit 0) and in the demo. With
+ * 			challenge_testAccept (--accept-bets, not in the original)
+ * 			the opponent takes every bet; the random number is still
+ * 			drawn.
  *
  ******************************************************************************/
 static bool challenge__accepts(
@@ -551,7 +560,14 @@ static bool challenge__accepts(
 		chance = (int16_t)(chance + (chance >> 2) + 10);
 	}
 
-	return random_next(100) <= chance;
+	bool accepts = random_next(100) <= chance;
+
+	if (challenge_testAccept && !accepts) {
+		plat_log("opponent takes the bet (--accept-bets)");
+		accepts = true;
+	}
+
+	return accepts;
 }
 
 /** ****************************************************************************

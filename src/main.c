@@ -49,6 +49,8 @@
  * 								this outcome (bits 0..7 for
  * 								DS:0x799c, 0x100 won) and the speed
  * 								at the end (mph); C notation (0x41)
+ * 			--accept-bets		the opponent on the street takes every
+ * 								bet (for automated runs)
  * 			--sound-test		play test tones and noise on the speaker
  * 								(about 2.5 seconds) and exit
  * 			--sound-wav FILE	record the sound as a WAV file
@@ -69,6 +71,7 @@
 #include <string.h>
 
 #include "dos/dos.h"
+#include "game/challenge.h"
 #include "game/cursor.h"
 #include "game/exe.h"
 #include "game/game.h"
@@ -574,6 +577,11 @@ static bool main__parseOptions(
 
 		if (strcmp(pOption, "--sound-test") == 0) {
 			pOptions->soundTest = true;
+			continue;
+		}
+
+		if (strcmp(pOption, "--accept-bets") == 0) {
+			challenge_testAccept = true;
 			continue;
 		}
 
