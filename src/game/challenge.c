@@ -49,7 +49,7 @@
 #define CHALLENGE_ROAD_SCREEN 0x13	/**< Screen: the bet of a road race. */
 #define CHALLENGE_WAIT		  3000	/**< Ticks event_wait waits. */
 #define CHALLENGE_ANSWER	  800	/**< Ticks the player has to answer. */
-#define CHALLENGE_ESCAPE	  -23	/**< event_wait: Esc. */
+#define CHALLENGE_ESCAPE	  (-23)	/**< event_wait: Esc. */
 #define CHALLENGE_TRIES		  2		/**< Bets the player may offer. */
 #define CHALLENGE_REPLIES	  5		/**< Refusals of each kind of race. */
 #define CHALLENGE_ACCEPTS	  3		/**< Acceptances of each kind of race. */

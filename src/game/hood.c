@@ -65,15 +65,15 @@
 #define HOOD_SCREEN			  0x15	 /**< Screen of the engine bay. */
 #define HOOD_TUNE_SCREEN	  0x1c	 /**< Screen of the tuning gauge. */
 #define HOOD_WAIT			  3000	 /**< Ticks event_wait waits at most. */
-#define HOOD_TUNE			  -3	 /**< Screen 0x15 result: tune. */
-#define HOOD_CHANGE			  -2	 /**< Screen 0x15 result: put in a part. */
-#define HOOD_DONE			  -1	 /**< Screen 0x15 result: leave. */
+#define HOOD_TUNE			  (-3)	 /**< Screen 0x15 result: tune. */
+#define HOOD_CHANGE			  (-2)	 /**< Screen 0x15 result: put in a part. */
+#define HOOD_DONE			  (-1)	 /**< Screen 0x15 result: leave. */
 #define HOOD_FASTENER_ID	  0xd	 /**< Hotspot of the 0x446/0x447 part. */
-#define HOOD_TUNE_UP		  -10	 /**< Screen 0x1c result: one up. */
-#define HOOD_TUNE_DOWN		  -7	 /**< Screen 0x1c result: one down. */
-#define HOOD_TUNE_DONE		  -1	 /**< Screen 0x1c result: leave. */
+#define HOOD_TUNE_UP		  (-10)	 /**< Screen 0x1c result: one up. */
+#define HOOD_TUNE_DOWN		  (-7)	 /**< Screen 0x1c result: one down. */
+#define HOOD_TUNE_DONE		  (-1)	 /**< Screen 0x1c result: leave. */
 #define HOOD_TUNE_MAX		  4		 /**< Highest setting of byte +0x20. */
-#define HOOD_TUNE_MIN		  -8	 /**< Lowest setting of byte +0x20. */
+#define HOOD_TUNE_MIN		  (-8)	 /**< Lowest setting of byte +0x20. */
 #define HOOD_TUNE_TIME_MAX	  0x444	 /**< Clock ticks tuning costs at most. */
 #define HOOD_TUNE_TIME_FACTOR 3		 /**< Clock ticks per BIOS tick tuned. */
 #define HOOD_MUSIC_TUNING	  2		 /**< globals_musicAvailable meanwhile. */
@@ -143,8 +143,8 @@
 #define HOOD_KIND_CARB		  2		 /**< Part kind of carburetors. */
 #define HOOD_KIND_MANIFOLD	  3		 /**< Part kind of manifolds. */
 #define HOOD_PARTS_SCREEN	  4		 /**< Spare parts shelf. */
-#define HOOD_PARTS_DONE		  -4	 /**< Screen 4 result: leave. */
-#define HOOD_PARTS_USE		  -3	 /**< Screen 4 result: the selection. */
+#define HOOD_PARTS_DONE		  (-4)	 /**< Screen 4 result: leave. */
+#define HOOD_PARTS_USE		  (-3)	 /**< Screen 4 result: the selection. */
 #define HOOD_PARTS_LIST		  0x49e0 /**< DS: list count and items. */
 #define HOOD_PART_FITS		  3		 /**< Parts table: makes it fits. */
 

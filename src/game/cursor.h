@@ -31,10 +31,10 @@
 ;
 ;-----------------------------------------------------------------------------*/
 
-#define CURSOR_SHOW		-1	  /**< Show again after drawing. */
-#define CURSOR_SHOW_NOW -2	  /**< Show, also on the display. */
-#define CURSOR_HIDE		-3	  /**< Hide while drawing. */
-#define CURSOR_HIDE_NOW -4	  /**< Hide, also on the display. */
+#define CURSOR_SHOW		(-1)  /**< Show again after drawing. */
+#define CURSOR_SHOW_NOW (-2)  /**< Show, also on the display. */
+#define CURSOR_HIDE		(-3)  /**< Hide while drawing. */
+#define CURSOR_HIDE_NOW (-4)  /**< Hide, also on the display. */
 #define CURSOR_MAX_X	0x13a /**< Rightmost cursor column. */
 #define CURSOR_MAX_Y	0xc2  /**< Lowest cursor row. */
 

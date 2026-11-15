@@ -71,8 +71,8 @@
 #define GAME_NAME_TOP		  6		 /**< Its top edge. */
 #define GAME_NAME_SCREEN	  2		 /**< Screen with the name input. */
 #define GAME_NAME_LENGTH	  15	 /**< Characters of the name. */
-#define GAME_NAME_OK		  -3	 /**< Result of OK and Enter. */
-#define GAME_NAME_OLD_GAME	  -2	 /**< Result of Old Game. */
+#define GAME_NAME_OK		  (-3)	 /**< Result of OK and Enter. */
+#define GAME_NAME_OLD_GAME	  (-2)	 /**< Result of Old Game. */
 #define GAME_START_MONEY	  750	 /**< Dollars in a new game. */
 #define GAME_DEMO_MONEY		  10000	 /**< Dollars in the demo. */
 #define GAME_UNKNOWN_AE		  10	 /**< Start value of DS:0x7eae. */
@@ -80,30 +80,30 @@
 #define GAME_DEMO_MODEL		  24	 /**< Model of the demo's ad. */
 #define GAME_DEMO_PRICE		  0x629	 /**< Value in the demo ad's +6. */
 #define GAME_QUIT_SCREEN	  0x1b	 /**< The quit dialog. */
-#define GAME_QUIT_END		  -20	 /**< Quit dialog: end the program. */
-#define GAME_QUIT_SAVE		  -3	 /**< Quit dialog: save the game. */
-#define GAME_QUIT_CANCEL	  -4	 /**< Quit dialog: back to the garage. */
-#define GAME_QUIT_ESCAPE	  -22	 /**< Quit dialog: Esc. */
+#define GAME_QUIT_END		  (-20)	 /**< Quit dialog: end the program. */
+#define GAME_QUIT_SAVE		  (-3)	 /**< Quit dialog: save the game. */
+#define GAME_QUIT_CANCEL	  (-4)	 /**< Quit dialog: back to the garage. */
+#define GAME_QUIT_ESCAPE	  (-22)	 /**< Quit dialog: Esc. */
 
 /* Results of garage_show: what the player chose. */
-#define GAME_CHOICE_PAPER		 1	 /**< Garage: the newspaper. */
-#define GAME_CHOICE_STREET		 2	 /**< Garage: hit the street. */
-#define GAME_CHOICE_CALENDAR	 3	 /**< Garage: calendar popup. */
-#define GAME_CHOICE_QUIT		 4	 /**< Garage: time to quit. */
-#define GAME_CHOICE_SELL_PARTS	 5	 /**< Garage: spare parts shelf. */
-#define GAME_CHOICE_CARS		 6	 /**< Garage: owned cars list. */
-#define GAME_CHOICE_PAINT		 7	 /**< Garage: spray paint. */
-#define GAME_CHOICE_TIRES		 8	 /**< Garage: change the tires. */
-#define GAME_CHOICE_GEARBOX		 9	 /**< Garage: the transmission. */
-#define GAME_CHOICE_HOOD		 10	 /**< Garage: under the hood. */
-#define GAME_CHOICE_REAR_BUMPER	 11	 /**< Garage: rear bumper. */
-#define GAME_CHOICE_FRONT_BUMPER 12	 /**< Garage: modify front bumper. */
-#define GAME_CHOICE_ROOF		 13	 /**< Garage: chop or weld roof. */
-#define GAME_CHOICE_STICKERS	 14	 /**< Garage: door stickers. */
-#define GAME_CHOICE_TANK		 15	 /**< Garage: the gas pump. */
-#define GAME_CHOICE_CAR_INFO	 16	 /**< Garage: car info clipboard. */
-#define GAME_CHOICE_DRINK		 17	 /**< Garage: the drink. */
-#define GAME_CHOICE_MUSIC		 -40 /**< Garage: the M key. */
+#define GAME_CHOICE_PAPER		 1	   /**< Garage: the newspaper. */
+#define GAME_CHOICE_STREET		 2	   /**< Garage: hit the street. */
+#define GAME_CHOICE_CALENDAR	 3	   /**< Garage: calendar popup. */
+#define GAME_CHOICE_QUIT		 4	   /**< Garage: time to quit. */
+#define GAME_CHOICE_SELL_PARTS	 5	   /**< Garage: spare parts shelf. */
+#define GAME_CHOICE_CARS		 6	   /**< Garage: owned cars list. */
+#define GAME_CHOICE_PAINT		 7	   /**< Garage: spray paint. */
+#define GAME_CHOICE_TIRES		 8	   /**< Garage: change the tires. */
+#define GAME_CHOICE_GEARBOX		 9	   /**< Garage: the transmission. */
+#define GAME_CHOICE_HOOD		 10	   /**< Garage: under the hood. */
+#define GAME_CHOICE_REAR_BUMPER	 11	   /**< Garage: rear bumper. */
+#define GAME_CHOICE_FRONT_BUMPER 12	   /**< Garage: modify front bumper. */
+#define GAME_CHOICE_ROOF		 13	   /**< Garage: chop or weld roof. */
+#define GAME_CHOICE_STICKERS	 14	   /**< Garage: door stickers. */
+#define GAME_CHOICE_TANK		 15	   /**< Garage: the gas pump. */
+#define GAME_CHOICE_CAR_INFO	 16	   /**< Garage: car info clipboard. */
+#define GAME_CHOICE_DRINK		 17	   /**< Garage: the drink. */
+#define GAME_CHOICE_MUSIC		 (-40) /**< Garage: the M key. */
 
 /*******************************************************************************
 ;

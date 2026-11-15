@@ -60,9 +60,9 @@
 #define PAPER_ADS_STYLE		 13	   /**< Style of the ads page. */
 #define PAPER_ADS_SCREEN	 8	   /**< Screen with the ads hotspots. */
 #define PAPER_ADS_WAIT		 3000  /**< Ticks waited per call. */
-#define PAPER_ADS_PREVIOUS	 -1	   /**< Left strip or P: previous page. */
-#define PAPER_ADS_NEXT		 -2	   /**< Right strip or N: next page. */
-#define PAPER_ADS_GARAGE	 -3	   /**< Corner, G or Esc: garage. */
+#define PAPER_ADS_PREVIOUS	 (-1)  /**< Left strip or P: previous page. */
+#define PAPER_ADS_NEXT		 (-2)  /**< Right strip or N: next page. */
+#define PAPER_ADS_GARAGE	 (-3)  /**< Corner, G or Esc: garage. */
 #define PAPER_LINE_ROWS		 9	   /**< Rows per text line. */
 #define PAPER_ITEM_PADDING	 3	   /**< Extra rows around an ad. */
 #define PAPER_CUTOFF_ROW	 0xc2  /**< Row reached when an ad was cut off. */
@@ -93,8 +93,8 @@
 #define PAPER_PRICE_SPACE	 12		/**< Bytes at PAPER_BUY_PRICE. */
 #define PAPER_PRICE_FORMAT	 0x4f80 /**< DS offset: "$%-3d ?". */
 #define PAPER_BUY_SCREEN	 9		/**< Buy dialog screen. */
-#define PAPER_BUY_YES		 -20	/**< Screen 9: "Yeah". */
-#define PAPER_BUY_SEE_IT	 -25	/**< Screen 9: "See it". */
+#define PAPER_BUY_YES		 (-20)	/**< Screen 9: "Yeah". */
+#define PAPER_BUY_SEE_IT	 (-25)	/**< Screen 9: "See it". */
 
 #define PAPER_SEE_TOP		 0x40  /**< Top of the "See it" area. */
 #define PAPER_SEE_HEIGHT	 0x52  /**< Height of the "See it" area. */

@@ -155,7 +155,7 @@
 #define STREET_AD_RACES	  12	/**< s8: races against the player. */
 #define STREET_AD_WINS	  13	/**< s8: races the opponent won against us. */
 #define STREET_MET		  1		/**< STREET_AD_STATE: met. */
-#define STREET_GONE		  -1	/**< STREET_AD_STATE: gone. */
+#define STREET_GONE		  (-1)	/**< STREET_AD_STATE: gone. */
 #define STREET_DEMO_MODEL 25	/**< Model of the demo's ad. */
 #define STREET_TABLE	  64	/**< Words of the ranking table. */
 #define STREET_FEW		  9		/**< Opponents ranked when not all are. */
@@ -226,7 +226,7 @@
  */
 #define STREET_FIGURE		  0x4c9	 /**< Resource: the frames. */
 #define STREET_FIGURE_SCREEN  0x18	 /**< One hotspot over the screen. */
-#define STREET_FIGURE_KEY	  -26	 /**< Screen key that ends it. */
+#define STREET_FIGURE_KEY	  (-26)	 /**< Screen key that ends it. */
 #define STREET_FIGURE_FIRST	  10	 /**< Ticks before the first frame. */
 #define STREET_FIGURE_STEPS	  31	 /**< Steps of the sequence. */
 #define STREET_FIGURE_SEQ	  0x521e /**< DS: (number, ticks) pairs. */

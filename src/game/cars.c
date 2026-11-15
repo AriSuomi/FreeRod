@@ -1936,7 +1936,7 @@ static void cars__buildForeground(
 
 	int		  maskWidth = pMask->width;
 	int		  maskHeight = pMask->height;
-	uint8_t * pMaskPixels = malloc((size_t)maskWidth * (size_t)maskHeight);
+	uint8_t * pMaskPixels = calloc((size_t)maskWidth * (size_t)maskHeight, 1);
 	uint8_t * pPixels = malloc((size_t)PLAT_WIDTH * CARS_STRIP_HEIGHT);
 
 	if (pMaskPixels != NULL && pPixels != NULL &&
@@ -2220,7 +2220,7 @@ static void cars__saveWaitress(void) {
 
 	int		  maskWidth = pMask->width;
 	int		  maskHeight = pMask->height;
-	uint8_t * pMaskPixels = malloc((size_t)maskWidth * (size_t)maskHeight);
+	uint8_t * pMaskPixels = calloc((size_t)maskWidth * (size_t)maskHeight, 1);
 	uint8_t * pPixels =
 		malloc((size_t)CARS_WAITRESS_STRIP * CARS_WAITRESS_HEIGHT);
 

@@ -35,7 +35,7 @@
 #define RACE_WON	0x7676 /**< s16 DS offset: 1 when the player won. */
 
 /** Value of race_testFlags when no outcome was given. */
-#define RACE_NO_TEST -1
+#define RACE_NO_TEST (-1)
 
 /*******************************************************************************
 ;

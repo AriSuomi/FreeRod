@@ -64,18 +64,18 @@
 #define GARAGE_STICKERS_SCREEN	 0x23 /**< Sticker sheet. */
 #define GARAGE_INFO_SCREEN		 0x26 /**< Car info clipboard. */
 
-#define GARAGE_PARTS_DONE		 -4	   /**< Screen 4 result: leave. */
-#define GARAGE_PARTS_SELL		 -3	   /**< Screen 4 result: sell the part. */
-#define GARAGE_CARS_DONE		 -3	   /**< Screen 11 result: leave. */
-#define GARAGE_CARS_DRIVE		 -1	   /**< Screen 11 result: drive it. */
-#define GARAGE_COUNTER_ACCEPT	 -20   /**< Screen 13 result: take it. */
-#define GARAGE_ANSWER_NO		 -21   /**< Screen 16 result: keep it. */
-#define GARAGE_INPUT_ESCAPE		 -22   /**< Number input ended by Esc. */
-#define GARAGE_HAGGLE_SOLD		 -1	   /**< garage__haggle: car sold. */
-#define GARAGE_KEY_SELL			 0x1f  /**< Key code: click (Space). */
-#define GARAGE_KEY_CHANGE		 0x2e  /**< Key code of "Change". */
-#define GARAGE_NO_WEAR			 -0x80 /**< Wear word of a new part. */
-#define GARAGE_WORN_OUT			 10000 /**< Wear of a worn-out part. */
+#define GARAGE_PARTS_DONE		 (-4)	 /**< Screen 4 result: leave. */
+#define GARAGE_PARTS_SELL		 (-3)	 /**< Screen 4 result: sell the part. */
+#define GARAGE_CARS_DONE		 (-3)	 /**< Screen 11 result: leave. */
+#define GARAGE_CARS_DRIVE		 (-1)	 /**< Screen 11 result: drive it. */
+#define GARAGE_COUNTER_ACCEPT	 (-20)	 /**< Screen 13 result: take it. */
+#define GARAGE_ANSWER_NO		 (-21)	 /**< Screen 16 result: keep it. */
+#define GARAGE_INPUT_ESCAPE		 (-22)	 /**< Number input ended by Esc. */
+#define GARAGE_HAGGLE_SOLD		 (-1)	 /**< garage__haggle: car sold. */
+#define GARAGE_KEY_SELL			 0x1f	 /**< Key code: click (Space). */
+#define GARAGE_KEY_CHANGE		 0x2e	 /**< Key code of "Change". */
+#define GARAGE_NO_WEAR			 (-0x80) /**< Wear word of a new part. */
+#define GARAGE_WORN_OUT			 10000	 /**< Wear of a worn-out part. */
 
 #define GARAGE_KIND_ENGINE		 0 /**< Parts table kind: engine. */
 #define GARAGE_KIND_GEARBOX		 1 /**< Parts table kind: transmission. */
@@ -122,8 +122,8 @@
 #define GARAGE_PARTS_LIST		 0x49e0 /**< DS: list count and items. */
 #define GARAGE_STICKERS_SHEET	 0x4b0	/**< Resource of sticker sheet. */
 #define GARAGE_STICKER_BASE		 30		/**< Offset from sticker key. */
-#define GARAGE_STICKER_MIN_KEY	 -38	/**< Lowest key for stickers. */
-#define GARAGE_STICKER_MAX_KEY	 -31	/**< Highest key for stickers. */
+#define GARAGE_STICKER_MIN_KEY	 (-38)	/**< Lowest key for stickers. */
+#define GARAGE_STICKER_MAX_KEY	 (-31)	/**< Highest key for stickers. */
 #define GARAGE_PARTS_SELL_TIME	 0x444	/**< Clock ticks to sell a part. */
 #define GARAGE_CAR_SELL_TIME	 0x888	/**< Clock ticks to sell a car. */
 
@@ -190,8 +190,8 @@
 #define GARAGE_GEARBOX_BOTTOM	 0x7d	/**< Bottom row + 1 of it. */
 #define GARAGE_GEARBOX_ASIDE	 0x18	/**< Shift of one that won't fit. */
 #define GARAGE_GEARBOX_WAIT		 3000	/**< Ticks event_wait waits. */
-#define GARAGE_GEARBOX_CHANGE	 -2		/**< Screen 0x14: "Change". */
-#define GARAGE_GEARBOX_DONE		 -1		/**< Screen 0x14: leave. */
+#define GARAGE_GEARBOX_CHANGE	 (-2)		/**< Screen 0x14: "Change". */
+#define GARAGE_GEARBOX_DONE		 (-1)		/**< Screen 0x14: leave. */
 #define GARAGE_GEARBOX_TIME		 0x666	/**< Clock ticks: in or out. */
 #define GARAGE_MISFIT_TIME		 0x888	/**< Clock ticks: did not fit. */
 #define GARAGE_TIRES_TIME		 0x444	/**< Clock ticks: new tires. */
@@ -1040,7 +1040,7 @@ static uint16_t garage__partPrice(
  ******************************************************************************/
 void garage_sellParts(void) {
 	uint16_t parts[STATE_PART_MAX + 1];
-	int8_t	 percents[STATE_PART_MAX + 1];
+	int8_t	 percents[STATE_PART_MAX + 1] = { 0 };
 	int16_t	 selection = 1;
 	int16_t	 visits = 0;
 
@@ -2257,8 +2257,8 @@ static bool garage__changeGearbox(
 		uint8_t	 fits = *exe_data((uint16_t)(entry + GARAGE_PART_FITS));
 		int16_t	 previous = exe_readS16(GARAGE_GEARBOX_PICTURE);
 		int16_t	 picture = exe_readS16(
-			 (uint16_t)(GARAGE_GEARBOX_PICTURES + subtype * 2)
-		 );
+			(uint16_t)(GARAGE_GEARBOX_PICTURES + subtype * 2)
+		);
 
 		exe_writeU16(GARAGE_GEARBOX_PICTURE, (uint16_t)picture);
 

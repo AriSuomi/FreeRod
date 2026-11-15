@@ -31,7 +31,7 @@
 
 #define GLOBALS_SCAN_CODES	  0x57 /**< Entries of globals_keyCodes. */
 #define GLOBALS_DIRECTIONS	  16   /**< Direction codes -16..-1. */
-#define GLOBALS_ADAPTER_EGA	  -2   /**< globals_videoAdapter for EGA/VGA. */
+#define GLOBALS_ADAPTER_EGA	  (-2) /**< globals_videoAdapter for EGA/VGA. */
 #define GLOBALS_CLICK_KEY	  0x1f /**< Key code of a left click. */
 #define GLOBALS_RIGHT_KEY	  0x1e /**< Key code of a right click. */
 #define GLOBALS_SOUND_KEY	  0x1d /**< Key code that toggles the sound. */

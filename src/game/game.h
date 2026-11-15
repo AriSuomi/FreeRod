@@ -24,8 +24,8 @@
 ;
 ;-----------------------------------------------------------------------------*/
 
-#define GAME_NEW	   -1	/**< Next step: the new game screen. */
-#define GAME_CANCELLED -666 /**< Loading failed: start a new game. */
+#define GAME_NEW	   (-1)	  /**< Next step: the new game screen. */
+#define GAME_CANCELLED (-666) /**< Loading failed: start a new game. */
 
 /*******************************************************************************
 ;

@@ -4,6 +4,9 @@ project(FreeRod LANGUAGES C)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
+# compile_commands.json in the build directory, used by lint.bat.
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 find_package(SDL3 CONFIG REQUIRED)
 find_package(SDL3_image CONFIG REQUIRED)
 
