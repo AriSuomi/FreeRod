@@ -689,9 +689,9 @@ static void street__setHotspots(
 	int16_t			top = (int16_t)(pBoxes[STREET_BOX_1 + 1] + carTop);
 	int16_t			right = (int16_t)(pBoxes[STREET_BOX_1 + 2] + left - 1);
 	int16_t			bottom = (int16_t)(exe_readS16(
-								   (uint16_t)(street__element(0) + STREET_TOP)
-							   ) -
-							   1);
+										   (uint16_t)(street__element(0) + STREET_TOP)
+									   ) -
+									   1);
 
 	exe_writeU16((uint16_t)(car + STREET_LEFT), (uint16_t)left);
 	exe_writeU16((uint16_t)(car + STREET_RIGHT), (uint16_t)right);
@@ -1093,15 +1093,18 @@ static bool street__waitress(
 				exe_writeU16(STREET_CALLED, 0);
 			}
 		}
-	} else if (leaving == 1) {
-		if (exe_readS16(STREET_WAITRESS) == 1 && random_next(100) < chance) {
-			happened = true;
-			cursor_set(CURSOR_HIDE_NOW);
-			cars_waitress(1, here);
-			exe_writeU16(STREET_WAITRESS, 0);
-			exe_writeU16(STREET_CALLED, 0);
-			exe_writeU16(STREET_SEEN, 0);
-		}
+
+	} else if (
+		(leaving == 1) &&
+		(exe_readS16(STREET_WAITRESS) == 1) &&
+		(random_next(100) < chance)
+	) {
+		happened = true;
+		cursor_set(CURSOR_HIDE_NOW);
+		cars_waitress(1, here);
+		exe_writeU16(STREET_WAITRESS, 0);
+		exe_writeU16(STREET_CALLED, 0);
+		exe_writeU16(STREET_SEEN, 0);
 	}
 
 	if (happened) {

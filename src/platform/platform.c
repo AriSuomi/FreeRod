@@ -518,7 +518,7 @@ void plat_setPaletteEntry(
 		return;
 	}
 
-	uint32_t color = 0xff000000u | ((uint32_t)red << 16) |
+	uint32_t color = 0xff000000U | ((uint32_t)red << 16) |
 		((uint32_t)green << 8) | blue;
 
 	if (plat__palette[index] != color) {
@@ -1225,7 +1225,7 @@ static plat_ImageHandle plat__createImage(
  *
  * \brief	Destroy an image.
  *
- * \param	id				Handle of the image.
+ * \param	imageHandle		Handle of the image.
  *
  * \details	An image still drawn on a page stays until no page draws it
  * 			(it is freed when an image is created), so the page keeps
@@ -1234,15 +1234,15 @@ static plat_ImageHandle plat__createImage(
  *
  ******************************************************************************/
 void plat_imageDestroy(
-	plat_ImageHandle id
+	plat_ImageHandle imageHandle
 ) {
-	plat__Image * pImage = plat__getImage(id);
+	plat__Image * pImage = plat__getImage(imageHandle);
 
 	if (!pImage) {
 		return;
 	}
 
-	if (plat__isDrawn(id)) {
+	if (plat__isDrawn(imageHandle)) {
 		pImage->released = true;
 		return;
 	}
@@ -1254,16 +1254,16 @@ void plat_imageDestroy(
  *
  * \brief	Check if an image is drawn from a replacement PNG.
  *
- * \param	id				Handle of the image.
+ * \param	imageHandle		Handle of the image.
  *
  * \retval	true	A replacement PNG was found.
  * \retval	false	The original pixels are drawn.
  *
  ******************************************************************************/
 bool plat_imageIsReplaced(
-	plat_ImageHandle id
+	plat_ImageHandle imageHandle
 ) {
-	const plat__Image * pImage = plat__getImage(id);
+	const plat__Image * pImage = plat__getImage(imageHandle);
 
 	return pImage && pImage->pReplacement;
 }
@@ -1272,7 +1272,7 @@ bool plat_imageIsReplaced(
  *
  * \brief	Add an image to the image layer of the selected page.
  *
- * \param	image			Handle of the image.
+ * \param	imageHandle		Handle of the image.
  * \param	left			Left edge in 320x200 coordinates.
  * \param	top				Top edge in 320x200 coordinates.
  *
@@ -1281,14 +1281,14 @@ bool plat_imageIsReplaced(
  *
  ******************************************************************************/
 void plat_drawImage(
-	plat_ImageHandle image,
+	plat_ImageHandle imageHandle,
 	int				 left,
 	int				 top
 ) {
-	const plat__Image * pImage = plat__getImage(image);
+	const plat__Image * pImage = plat__getImage(imageHandle);
 
 	if (pImage) {
-		plat_drawImageRows(image, left, top, pImage->height);
+		plat_drawImageRows(imageHandle, left, top, pImage->height);
 	}
 }
 
