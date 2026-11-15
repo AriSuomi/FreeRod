@@ -29,31 +29,31 @@
 ;
 ;-----------------------------------------------------------------------------*/
 
-#define FPU_TOP_BIT			0x8000000000000000ull /**< Bit 63. */
+#define FPU_TOP_BIT			0x8000000000000000ULL /**< Bit 63. */
 #define FPU_DOUBLE_DROPPED	0x7ffull			  /**< Bits a qword lacks. */
-#define FPU_DOUBLE_HALF		0x400ull			  /**< Half of its last bit. */
-#define FPU_DOUBLE_LAST		0x800ull			  /**< Its last bit. */
+#define FPU_DOUBLE_HALF		0x400ULL			  /**< Half of its last bit. */
+#define FPU_DOUBLE_LAST		0x800ULL			  /**< Its last bit. */
 #define FPU_DOUBLE_FRACTION 52					  /**< Stored mantissa bits. */
 #define FPU_DOUBLE_BIAS		1023				  /**< Exponent bias. */
 #define FPU_DOUBLE_EXPONENT 0x7ff				  /**< Exponent field mask. */
 #define FPU_SINGLE_FRACTION 23					  /**< Dword mantissa bits. */
 #define FPU_SINGLE_BIAS		127					  /**< Dword exponent bias. */
 #define FPU_SINGLE_EXPONENT 0xff				  /**< Dword exponent mask. */
-#define FPU_SINGLE_SIGN		0x80000000ul		  /**< Dword sign bit. */
-#define FPU_SINGLE_INF		0x7f800000ul		  /**< Dword infinity field. */
-#define FPU_SINGLE_DROPPED	0xffffffffffull		  /**< Bits a dword lacks. */
-#define FPU_SINGLE_HALF		0x8000000000ull		  /**< Half of its last bit. */
-#define FPU_SINGLE_LAST		0x10000000000ull	  /**< Its last bit. */
+#define FPU_SINGLE_SIGN		0x80000000UL		  /**< Dword sign bit. */
+#define FPU_SINGLE_INF		0x7f800000UL		  /**< Dword infinity field. */
+#define FPU_SINGLE_DROPPED	0xffffffffffULL		  /**< Bits a dword lacks. */
+#define FPU_SINGLE_HALF		0x8000000000ULL		  /**< Half of its last bit. */
+#define FPU_SINGLE_LAST		0x10000000000ULL	  /**< Its last bit. */
 #define FPU_SINGLE_SHIFT	40					  /**< Dropped dword bits. */
-#define FPU_LOW_HALF		0xffffffffull		  /**< Low 32 bits. */
+#define FPU_LOW_HALF		0xffffffffULL		  /**< Low 32 bits. */
 
 /*
  * Sine and cosine. A quarter turn (pi / 2) is FPU_QUARTER_TOP +
  * FPU_QUARTER_REST: the first has 32 bits, so its multiples are exact.
  */
-#define FPU_QUARTER			0xc90fdaa22168c235ull /**< pi / 2, exponent 0. */
-#define FPU_QUARTER_TOP		0xc90fdaa200000000ull /**< Its first 32 bits. */
-#define FPU_QUARTER_REST	0x85a308d313198a2eull /**< The 64 bits after. */
+#define FPU_QUARTER			0xc90fdaa22168c235ULL /**< pi / 2, exponent 0. */
+#define FPU_QUARTER_TOP		0xc90fdaa200000000ULL /**< Its first 32 bits. */
+#define FPU_QUARTER_REST	0x85a308d313198a2eULL /**< The 64 bits after. */
 #define FPU_QUARTER_REST_AT (-34)				  /**< Their exponent. */
 #define FPU_SERIES_TERMS	10					  /**< Terms after the first. */
 
@@ -159,14 +159,14 @@ fpu_Real fpu_fromSingle(
 
 	int32_t exponent =
 		(int32_t)((bits >> FPU_SINGLE_FRACTION) & FPU_SINGLE_EXPONENT);
-	uint64_t fraction = bits & ((1ul << FPU_SINGLE_FRACTION) - 1);
+	uint64_t fraction = bits & ((1UL << FPU_SINGLE_FRACTION) - 1);
 
 	if (exponent == 0 || exponent == FPU_SINGLE_EXPONENT) {
 		return fpu__zero();
 	}
 
 	fpu_Real result = {
-		(fraction | (1ull << FPU_SINGLE_FRACTION)) << 40,
+		(fraction | (1ULL << FPU_SINGLE_FRACTION)) << 40,
 		exponent - FPU_SINGLE_BIAS,
 		(bits & FPU_SINGLE_SIGN) != 0
 	};
@@ -196,14 +196,14 @@ fpu_Real fpu_fromDouble(
 
 	int32_t exponent =
 		(int32_t)((bits >> FPU_DOUBLE_FRACTION) & FPU_DOUBLE_EXPONENT);
-	uint64_t fraction = bits & ((1ull << FPU_DOUBLE_FRACTION) - 1);
+	uint64_t fraction = bits & ((1ULL << FPU_DOUBLE_FRACTION) - 1);
 
 	if (exponent == 0 || exponent == FPU_DOUBLE_EXPONENT) {
 		return fpu__zero();
 	}
 
 	fpu_Real result = {
-		(fraction | (1ull << FPU_DOUBLE_FRACTION)) << 11,
+		(fraction | (1ULL << FPU_DOUBLE_FRACTION)) << 11,
 		exponent - FPU_DOUBLE_BIAS,
 		(bits & FPU_TOP_BIT) != 0
 	};
@@ -280,7 +280,7 @@ void fpu_toSingle(
 		if (biased >= FPU_SINGLE_EXPONENT) {
 			bits = FPU_SINGLE_INF;
 		} else if (biased > 0) {
-			uint32_t mask = (1ul << FPU_SINGLE_FRACTION) - 1;
+			uint32_t mask = (1UL << FPU_SINGLE_FRACTION) - 1;
 
 			bits = ((uint32_t)biased << FPU_SINGLE_FRACTION) |
 				(uint32_t)((kept >> FPU_SINGLE_SHIFT) & mask);

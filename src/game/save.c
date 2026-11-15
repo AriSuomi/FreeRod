@@ -70,10 +70,10 @@
 #define SAVE_SLOT_SPARE		6	   /**< Car record: first part slot. */
 #define SAVE_SLOT_FITTED	8	   /**< Car record: 5 more part slots. */
 #define SAVE_FITTED_SLOTS	5	   /**< Slots from +8. */
-#define SAVE_CANCEL			-4	   /**< List result: leave. */
-#define SAVE_CHOSEN			-3	   /**< List result: the selected item. */
-#define SAVE_ANSWER_YES		-20	   /**< Overwrite screen: yes. */
-#define SAVE_ANSWER_NO		-21	   /**< Overwrite screen: no. */
+#define SAVE_CANCEL			(-4)	   /**< List result: leave. */
+#define SAVE_CHOSEN			(-3)	   /**< List result: the selected item. */
+#define SAVE_ANSWER_YES		(-20)	   /**< Overwrite screen: yes. */
+#define SAVE_ANSWER_NO		(-21)	   /**< Overwrite screen: no. */
 #define SAVE_LOAD_SCREEN	3	   /**< List of saved games to load. */
 #define SAVE_SAVE_SCREEN	5	   /**< List of slots to save in. */
 #define SAVE_FAILED_SCREEN	6	   /**< Saving failed. */
@@ -230,7 +230,7 @@ void save_scanSlots(
 
 		save__fileName(slot, name, sizeof name);
 
-		uint8_t * pFile = plat_readSave(name, &size);
+		const uint8_t * pFile = plat_readSave(name, &size);
 
 		*pMark = 0;
 

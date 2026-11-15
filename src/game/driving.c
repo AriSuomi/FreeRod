@@ -1436,8 +1436,10 @@ static void driving__advanceOpponent(void) {
 			driving__writeS16(DRIVING_RIVAL_SIDE, curveDelta < 0 ? 1 : 0);
 		}
 		driving__writeS16(DRIVING_WEAVE_READY, 1);
+
 	} else if (lead > 6) {
 		driving__chaseLane(curveDelta, roadFlags, midLane);
+
 	} else if (lead > closeLead) {
 		if (curveDelta != 0) {
 			driving__avoidCurve(curveDelta, midLane);
@@ -1453,6 +1455,7 @@ static void driving__advanceOpponent(void) {
 			driving__writeS16(DRIVING_WEAVE_READY, 0);
 			driving__writeS16(DRIVING_RIVAL_SIDE, side == 0 ? 1 : 0);
 		}
+
 	} else if (lead > -4) {
 		int16_t gap = exe_readS16(DRIVING_CAR_GAP);
 		int16_t playerLat = exe_readS16(DRIVING_PLAYER_LAT);
@@ -1513,8 +1516,10 @@ static void driving__advanceOpponent(void) {
 		} else if (gap == 0) {
 			driving__writeS16(DRIVING_RIVAL_PLACE, (int16_t)(playerLat - 330));
 		}
+
 	} else if (lead > -6) {
 		driving__chaseLane(curveDelta, roadFlags, midLane);
+
 	} else {
 		driving__writeS16(DRIVING_RIVAL_PLACE, midLane);
 		driving__writeS16(DRIVING_WEAVE_READY, 1);

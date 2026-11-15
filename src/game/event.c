@@ -34,17 +34,17 @@
 ;
 ;-----------------------------------------------------------------------------*/
 
-#define EVENT_KEY_TABLE	   0x579f /**< DS offset: key map of each screen. */
-#define EVENT_MUSIC_KEY	   0x57f3 /**< DS offset: pointer to the M key pair. */
-#define EVENT_MAX_KEYS	   0x1e	  /**< Key pairs of a screen at most, + 1. */
-#define EVENT_KEY_OFFSET   0x32	  /**< Added to negative key codes. */
-#define EVENT_MUSIC_RESULT -0x28  /**< Key result that toggles the music. */
-#define EVENT_QUIT_KEY	   0x7f	  /**< Key code that ends the game. */
-#define EVENT_FIRST_LETTER 0x20	  /**< Lowest key code of a character. */
-#define EVENT_CYCLE_MASK   0x0f	  /**< Palette cycle: every 16th tick. */
-#define EVENT_CYCLE_COLORS 0x698  /**< DS offset: the 3 cycling colors. */
-#define EVENT_CYCLE_FIRST  6	  /**< First palette entry that cycles. */
-#define EVENT_NO_HOTSPOT   32000  /**< globals_hotId before a test. */
+#define EVENT_KEY_TABLE	   0x579f  /**< DS offset: key map of each screen. */
+#define EVENT_MUSIC_KEY	   0x57f3  /**< DS offset: pointer to the M key pair. */
+#define EVENT_MAX_KEYS	   0x1e	   /**< Key pairs of a screen at most, + 1. */
+#define EVENT_KEY_OFFSET   0x32	   /**< Added to negative key codes. */
+#define EVENT_MUSIC_RESULT (-0x28) /**< Key result that toggles the music. */
+#define EVENT_QUIT_KEY	   0x7f	   /**< Key code that ends the game. */
+#define EVENT_FIRST_LETTER 0x20	   /**< Lowest key code of a character. */
+#define EVENT_CYCLE_MASK   0x0f	   /**< Palette cycle: every 16th tick. */
+#define EVENT_CYCLE_COLORS 0x698   /**< DS offset: the 3 cycling colors. */
+#define EVENT_CYCLE_FIRST  6	   /**< First palette entry that cycles. */
+#define EVENT_NO_HOTSPOT   32000   /**< globals_hotId before a test. */
 
 #define EVENT_SCREEN_PARTS 0x16	  /**< Screen with its own status text. */
 #define EVENT_SCREEN_SHOP  0x25	  /**< Screen with its own status text. */

@@ -48,7 +48,7 @@
 ;-----------------------------------------------------------------------------*/
 
 #define MOVER_CROP		0x2d0 /**< DS: s16, bottom rows not drawn. */
-#define MOVER_PHASE_END -1	  /**< Count that ends the phase list. */
+#define MOVER_PHASE_END (-1)  /**< Count that ends the phase list. */
 #define MOVER_FAR_STEP	8	  /**< Steps of 8 and more: 4 frames on. */
 #define MOVER_MID_STEP	4	  /**< Steps of 4 to 7: 2 frames on. */
 
@@ -309,8 +309,8 @@ bool mover_step(void) {
 
 	const mover_Frame * pFrame = &pMover->frames[pMover->frame];
 	int16_t				crop = exe_readS16(MOVER_CROP);
-	int16_t				screen[4] = { 0, 0, PLAT_WIDTH, PLAT_HEIGHT };
-	int16_t				sprite[4] = {
+	const int16_t		screen[4] = { 0, 0, PLAT_WIDTH, PLAT_HEIGHT };
+	const int16_t		sprite[4] = {
 		pMover->left,
 		pMover->top,
 		pFrame->width,
@@ -338,7 +338,7 @@ bool mover_step(void) {
 	}
 
 	if (visible) {
-		int clip[4] = { drawn[0], drawn[1], drawn[2], drawn[3] };
+		const int clip[4] = { drawn[0], drawn[1], drawn[2], drawn[3] };
 
 		plat_copyRect(
 			pMover->background,
@@ -369,7 +369,7 @@ bool mover_step(void) {
 				continue;
 			}
 
-			int frontClip[4] = { limit[0], limit[1], limit[2], limit[3] };
+			const int frontClip[4] = { limit[0], limit[1], limit[2], limit[3] };
 
 			plat_drawImagePart(
 				pFront->picture.image,

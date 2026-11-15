@@ -1263,7 +1263,7 @@ void plat_imageDestroy(
 bool plat_imageIsReplaced(
 	plat_ImageHandle id
 ) {
-	plat__Image * pImage = plat__getImage(id);
+	const plat__Image * pImage = plat__getImage(id);
 
 	return pImage && pImage->pReplacement;
 }
@@ -1285,7 +1285,7 @@ void plat_drawImage(
 	int				 left,
 	int				 top
 ) {
-	plat__Image * pImage = plat__getImage(image);
+	const plat__Image * pImage = plat__getImage(image);
 
 	if (pImage) {
 		plat_drawImageRows(image, left, top, pImage->height);
@@ -1366,7 +1366,7 @@ void plat_drawImagePart(
 	int				 top,
 	const int *		 pClip
 ) {
-	plat__Image * pImage = plat__getImage(image);
+	const plat__Image * pImage = plat__getImage(image);
 
 	if (!pImage || sourceLeft < 0 || sourceTop < 0) {
 		return;
@@ -2412,7 +2412,7 @@ static void plat__addDraw(
 	plat__Page *	   pPage,
 	const plat__Draw * pDraw
 ) {
-	plat__Image * pImage = plat__getImage(pDraw->image);
+	const plat__Image * pImage = plat__getImage(pDraw->image);
 
 	if (pImage && pImage->seeThrough < 0) {
 		plat__dropCovered(pPage, &pDraw->clip);
@@ -2623,10 +2623,10 @@ static void plat__drawCursor(void) {
 
 	const int scale = plat__renderScale;
 	SDL_Rect  source = {
-		 0,
-		 plat__cursorSource * textureHeight / pImage->height,
-		 textureWidth,
-		 plat__cursorRows * textureHeight / pImage->height,
+		0,
+		plat__cursorSource * textureHeight / pImage->height,
+		textureWidth,
+		plat__cursorRows * textureHeight / pImage->height,
 	};
 	SDL_Rect target = {
 		plat__cursorLeft * scale,

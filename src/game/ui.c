@@ -78,13 +78,13 @@
 #define UI_PERCENT_DIGITS	 1		/**< Where the digits go in it. */
 #define UI_PERCENT_SPACE	 3		/**< Byte made a space first. */
 #define UI_LIST_SEP_TEXT	 0x7be	/**< DS offset: " - " separator. */
-#define UI_LIST_NO_PERCENT	 -128	/**< Percent entry meaning no wear. */
+#define UI_LIST_NO_PERCENT	 (-128)	/**< Percent entry meaning no wear. */
 #define UI_LIST_NO_HOVER	 0x26	/**< Screen without hover highlight. */
-#define UI_LIST_SCROLL_DOWN	 -10	/**< List key: scroll down one row. */
-#define UI_LIST_PAGE_DOWN	 -9		/**< List key: scroll down one page. */
-#define UI_LIST_PAGE_UP		 -8		/**< List key: scroll up one page. */
-#define UI_LIST_SCROLL_UP	 -7		/**< List key: scroll up one row. */
-#define UI_LIST_EDIT_KEY	 -6		/**< List key: edit selected name. */
+#define UI_LIST_SCROLL_DOWN	 (-10)	/**< List key: scroll down one row. */
+#define UI_LIST_PAGE_DOWN	 (-9)		/**< List key: scroll down one page. */
+#define UI_LIST_PAGE_UP		 (-8)		/**< List key: scroll up one page. */
+#define UI_LIST_SCROLL_UP	 (-7)		/**< List key: scroll up one row. */
+#define UI_LIST_EDIT_KEY	 (-6)		/**< List key: edit selected name. */
 #define UI_NUMBER_MAX_DIGITS 10		/**< Max digits in ui_numberInput. */
 
 #define UI_TYPE				 0	/**< Element field: type. */
@@ -1079,7 +1079,7 @@ int16_t ui_textInput(
 
 	if (PLAT_WIDTH <= width + left) {
 		maxLength = (int16_t)((PLAT_WIDTH - left - 1) / UI_INPUT_COLUMNS);
-		pText[maxLength] = '\0';
+		pText[maxLength]  = '\0';
 		width = (int16_t)(maxLength * UI_INPUT_COLUMNS);
 	}
 
@@ -1188,7 +1188,7 @@ int16_t ui_textInput(
 		screen_verticalLine(surface, caretLeft, caretTop, TEXT_ROWS);
 
 		if (key == '\b' && length >= 1) {
-			char removed[2] = { pText[length - 1], '\0' };
+			const char removed[2] = { pText[length - 1], '\0' };
 
 			length--;
 			caretLeft = (int16_t)(caretLeft - text_width(removed));

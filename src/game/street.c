@@ -1020,10 +1020,8 @@ static void street__select(
 			pRecord[STATE_AD_WEAR] =
 				random_next(20) < chance ? (uint8_t)random_next(STREET_STICKERS)
 										 : 0;
-		} else if (sticker > 0 && races > 10) {
-			if (random_next(40) < chance) {
-				pRecord[STATE_AD_WEAR] = (uint8_t)random_next(STREET_STICKERS);
-			}
+		} else if ((sticker > 0) && (races > 10) && (random_next(40) < chance)) {
+			pRecord[STATE_AD_WEAR] = (uint8_t)random_next(STREET_STICKERS);
 		}
 
 		if (exe_readS16((uint16_t)(partsAt + STATE_PARTS_REAR)) > 0 &&

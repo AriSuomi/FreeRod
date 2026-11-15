@@ -1291,10 +1291,10 @@ void screen_slideAt(
 		fromRow--;
 	}
 
-	int16_t steps = (int16_t)(distance / 2 + 1);
-	int		saved = screen_saveRect(column, stripTop, width, rows);
-	int		strip[4] = { column, stripTop, width, rows };
-	int16_t row = fromRow;
+	int16_t	  steps = (int16_t)(distance / 2 + 1);
+	int		  saved = screen_saveRect(column, stripTop, width, rows);
+	const int strip[4] = { column, stripTop, width, rows };
+	int16_t	  row = fromRow;
 
 	for (int16_t count = 0; count < steps; count++) {
 		screen_putBackRect(saved);

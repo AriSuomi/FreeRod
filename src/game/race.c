@@ -1077,7 +1077,7 @@ static void race__drawClipped(
 	int most = (int)sizeof(text) - 1;
 
 	while (pText[length] != 0 && width < limit && length < most) {
-		char character[2] = { pText[length], 0 };
+		const char character[2] = { pText[length], 0 };
 
 		width = (int16_t)(width + text_width(character));
 		length++;

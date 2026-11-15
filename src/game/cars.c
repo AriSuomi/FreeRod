@@ -520,9 +520,9 @@ uint16_t cars_create(
 		car = cars_allocCar();
 	}
 
-	int		  modelAt = STATE_MODELS + model * STATE_MODEL_SIZE;
-	uint8_t * pModel = exe_data((uint16_t)modelAt);
-	uint8_t * pCar = exe_data(car);
+	int				modelAt = STATE_MODELS + model * STATE_MODEL_SIZE;
+	const uint8_t * pModel = exe_data((uint16_t)modelAt);
+	uint8_t *		pCar = exe_data(car);
 
 	exe_writeU16((uint16_t)(car + STATE_CAR_MODEL), (uint16_t)model);
 	exe_writeU16((uint16_t)(car + STATE_CAR_PRICE), (uint16_t)price);
@@ -1366,10 +1366,10 @@ static void cars__build(
 				emptyPixels++;
 			}
 
-			int emptyChunks = emptyPixels / 8;
 			int chunksPerRow = patchWidth / 8;
 
 			if (chunksPerRow > 0) {
+				int emptyChunks = emptyPixels / 8;
 				roofDrop = emptyChunks / chunksPerRow;
 			}
 
@@ -2028,9 +2028,9 @@ void cars_drawOnWorkPart(
 	int16_t width,
 	int16_t height
 ) {
-	int16_t carLeft = exe_readS16(STATE_CAR_LEFT);
-	int		frame = ((uint16_t)carLeft >> 1) & 3;
-	int		clip[4] = { left, top, width, height };
+	int16_t	  carLeft = exe_readS16(STATE_CAR_LEFT);
+	int		  frame = ((uint16_t)carLeft >> 1) & 3;
+	const int clip[4] = { left, top, width, height };
 
 	if (cars__frames[frame] == 0 || cars__bodyWidth <= 0) {
 		return;

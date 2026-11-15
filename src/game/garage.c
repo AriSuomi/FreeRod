@@ -190,8 +190,8 @@
 #define GARAGE_GEARBOX_BOTTOM	 0x7d	/**< Bottom row + 1 of it. */
 #define GARAGE_GEARBOX_ASIDE	 0x18	/**< Shift of one that won't fit. */
 #define GARAGE_GEARBOX_WAIT		 3000	/**< Ticks event_wait waits. */
-#define GARAGE_GEARBOX_CHANGE	 (-2)		/**< Screen 0x14: "Change". */
-#define GARAGE_GEARBOX_DONE		 (-1)		/**< Screen 0x14: leave. */
+#define GARAGE_GEARBOX_CHANGE	 (-2)	/**< Screen 0x14: "Change". */
+#define GARAGE_GEARBOX_DONE		 (-1)	/**< Screen 0x14: leave. */
 #define GARAGE_GEARBOX_TIME		 0x666	/**< Clock ticks: in or out. */
 #define GARAGE_MISFIT_TIME		 0x888	/**< Clock ticks: did not fit. */
 #define GARAGE_TIRES_TIME		 0x444	/**< Clock ticks: new tires. */
@@ -865,18 +865,21 @@ static void garage__warnWhenFull(void) {
 
 	if (exe_readS16(STATE_CAR_COUNT) >= GARAGE_MAX_CARS) {
 		game_message(GARAGE_TEXT_CARS_FULL);
+
 	} else if (parts == GARAGE_MANY_PARTS) {
 		game_message(GARAGE_TEXT_PARTS_MAX);
+
 	} else if (parts > GARAGE_MANY_PARTS) {
-		char * pFirstLine = (char *)exe_data(GARAGE_OVER_TEXT);
-		char * pSecondLine = pFirstLine + strlen(pFirstLine) + 1;
-		char * pNumber = pSecondLine +
-			strcspn(pSecondLine, exe_text(GARAGE_DIGITS));
 		char buffer[8];
 		int	 over = parts - GARAGE_MAX_PARTS_HELD;
 		int	 length = snprintf(buffer, sizeof buffer, "%d", over);
 
 		if (length > 0) {
+			char * pFirstLine = (char *)exe_data(GARAGE_OVER_TEXT);
+			char * pSecondLine = pFirstLine + strlen(pFirstLine) + 1;
+			char * pNumber = pSecondLine +
+				strcspn(pSecondLine, exe_text(GARAGE_DIGITS));
+
 			memcpy(pNumber, buffer, (size_t)length);
 			pNumber[length] = ' ';
 		}
@@ -1767,15 +1770,15 @@ static void garage__infoList(
 	int16_t * pIndents,
 	int8_t *  pPercents
 ) {
-	uint16_t car = exe_readU16(STATE_CAR);
-	int		 slots[GARAGE_INFO_SLOTS] = { STATE_CAR_ENGINE,
-										  STATE_CAR_INTAKE,
-										  STATE_CAR_CARBS,
-										  STATE_CAR_CARBS + 2,
-										  STATE_CAR_CARBS + 4,
-										  STATE_CAR_GEARBOX,
-										  STATE_CAR_TIRES };
-	int16_t	 count = 0;
+	uint16_t  car = exe_readU16(STATE_CAR);
+	const int slots[GARAGE_INFO_SLOTS] = { STATE_CAR_ENGINE,
+										   STATE_CAR_INTAKE,
+										   STATE_CAR_CARBS,
+										   STATE_CAR_CARBS + 2,
+										   STATE_CAR_CARBS + 4,
+										   STATE_CAR_GEARBOX,
+										   STATE_CAR_TIRES };
+	int16_t	  count = 0;
 
 	for (int slot = 0; slot < GARAGE_INFO_SLOTS; slot++) {
 		uint16_t part = exe_readU16((uint16_t)(car + slots[slot]));
@@ -2646,7 +2649,7 @@ static void garage__moveCar(
 	int16_t				frame,
 	bool				rising
 ) {
-	int16_t clip[4] = {
+	const int16_t clip[4] = {
 		pTires->carLeft,
 		0,
 		(int16_t)(pCar->width - 1),
@@ -2753,8 +2756,8 @@ static void garage__showJack(
 
 	garage__jackArea(pTires, &top, &width);
 
-	int16_t height = (int16_t)(GARAGE_JACK_UP + 1 - top);
-	int		clip[4] = { GARAGE_JACK_LEFT, top, width, height };
+	int16_t	  height = (int16_t)(GARAGE_JACK_UP + 1 - top);
+	const int clip[4] = { GARAGE_JACK_LEFT, top, width, height };
 
 	plat_copyRect(
 		SCREEN_SCENE_PAGE,
@@ -2888,7 +2891,7 @@ static void garage__swapWheel(
 	const mover_Frame * pCar = &pTires->car;
 	int16_t				carTop =
 		(int16_t)(GARAGE_LIFTED_BOTTOM - pCar->height + 1);
-	int16_t clip[4] = {
+	const int16_t clip[4] = {
 		pTires->carLeft,
 		carTop,
 		pCar->width,
