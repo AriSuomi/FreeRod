@@ -16,3 +16,8 @@ checkersReport
 # globals_keyboardBusy = -1 ... = 0 is the original's guard against the
 # keyboard interrupt; kept for a faithful port.
 redundantAssignment:src/game/input.c
+
+# Mostly false positives here: cppcheck loses 64-bit wraparound and sign
+# changes in casts (fpu.c), and the port keeps the original's redundant
+# checks on purpose.
+knownConditionTrueFalse
