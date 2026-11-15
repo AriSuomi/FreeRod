@@ -176,23 +176,23 @@
 /*
  * Messages (offsets from DS:0x2c02).
  */
-#define RACE_MSG_LUCK		 0x14bd	 /**< "Beginner's luck, punk!" */
-#define RACE_MSG_GOOD		 0x14d6	 /**< "You ran a good race." */
-#define RACE_MSG_DEBTS		 0x1793	 /**< "You've been sentenced for debts" */
-#define RACE_MSG_JUMPED		 -0x134e /**< "Ya jumped the light" (not kept) */
-#define RACE_MSG_WALK		 0x143a	 /**< "Take a walk, sucker." */
-#define RACE_MSG_LOSE		 0x1427	 /**< "You lose, sucker." */
-#define RACE_MSG_CLOSE		 0x1450	 /**< "Close, but no cigar punk!" */
-#define RACE_MSG_CHOKE		 0x146c	 /**< "I knew you'd choke ..." */
-#define RACE_MSG_PINK_TIRES	 0x16f6	 /**< "Blew your tires again?" */
-#define RACE_MSG_PINK_LOST	 0x1658	 /**< "You lose. Take a walk, sucker." */
-#define RACE_MSG_SLOW_TIRES	 0x1590	 /**< "Lucky you're so slow ..." */
-#define RACE_MSG_SLOW		 0x1561	 /**< "Lucky you're so slow ..." */
-#define RACE_MSG_JUNK		 0x1513	 /**< "Lucky you weren't killed ..." */
-#define RACE_MSG_PINK_GEAR	 0x1678	 /**< "You just dropped your trans..." */
-#define RACE_MSG_GEARBOX	 0x1608	 /**< "... transmission, klutz!" */
-#define RACE_MSG_PINK_ENGINE 0x16bd	 /**< "Blew your engine again?" */
-#define RACE_MSG_ENGINE		 0x1634	 /**< "Blew your engine again, huh" */
+#define RACE_MSG_LUCK		 0x14bd	   /**< "Beginner's luck, punk!" */
+#define RACE_MSG_GOOD		 0x14d6	   /**< "You ran a good race." */
+#define RACE_MSG_DEBTS		 0x1793	   /**< "You've been sentenced for debts" */
+#define RACE_MSG_JUMPED		 (-0x134e) /**< "Ya jumped the light" (not kept) */
+#define RACE_MSG_WALK		 0x143a	   /**< "Take a walk, sucker." */
+#define RACE_MSG_LOSE		 0x1427	   /**< "You lose, sucker." */
+#define RACE_MSG_CLOSE		 0x1450	   /**< "Close, but no cigar punk!" */
+#define RACE_MSG_CHOKE		 0x146c	   /**< "I knew you'd choke ..." */
+#define RACE_MSG_PINK_TIRES	 0x16f6	   /**< "Blew your tires again?" */
+#define RACE_MSG_PINK_LOST	 0x1658	   /**< "You lose. Take a walk, sucker." */
+#define RACE_MSG_SLOW_TIRES	 0x1590	   /**< "Lucky you're so slow ..." */
+#define RACE_MSG_SLOW		 0x1561	   /**< "Lucky you're so slow ..." */
+#define RACE_MSG_JUNK		 0x1513	   /**< "Lucky you weren't killed ..." */
+#define RACE_MSG_PINK_GEAR	 0x1678	   /**< "You just dropped your trans..." */
+#define RACE_MSG_GEARBOX	 0x1608	   /**< "... transmission, klutz!" */
+#define RACE_MSG_PINK_ENGINE 0x16bd	   /**< "Blew your engine again?" */
+#define RACE_MSG_ENGINE		 0x1634	   /**< "Blew your engine again, huh" */
 
 /*
  * Speeds (mph) at the end of a race.
@@ -1083,16 +1083,17 @@ static void race__drawClipped(
 		length++;
 	}
 
-	if (width >= limit) {
+	if (width >= limit && length > 0) {
 		length--;
 	}
 
-	if (length > maxLength) {
+	if (maxLength >= 0 && length > maxLength) {
 		length = maxLength;
 	}
 
 	memcpy(text, pText, (size_t)length);
-	text[length] = 0;
+	/* length <= most: the analyzer loses that bound across the loop. */
+	text[length] = 0; // NOLINT(clang-analyzer-security.ArrayBound)
 	text_draw(globals_workSurface, RACE_TICKET_TEXT_X, top, text);
 }
 
@@ -1138,7 +1139,7 @@ static void race__crashPicture(void) {
 		sceneWidth,
 		(int16_t)(sceneHeight - RACE_CRASH_SPLIT),
 		0,
-		(int16_t)(RACE_CRASH_SPLIT + tall + RACE_CRASH_Y),
+		(int16_t)(RACE_CRASH_SPLIT + (tall ? 1 : 0) + RACE_CRASH_Y),
 		false
 	);
 	screen_drawSpritePart(
@@ -1149,7 +1150,7 @@ static void race__crashPicture(void) {
 		race__width(RACE_CRASH_BOTTOM),
 		bottomHeight,
 		0,
-		(int16_t)(RACE_CRASH_BOTTOM_Y + tall),
+		(int16_t)(RACE_CRASH_BOTTOM_Y + (tall ? 1 : 0)),
 		true
 	);
 	drive_crashMark(exe_readS16(RACE_WHEEL));

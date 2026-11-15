@@ -996,7 +996,7 @@ static void driving__matchGear(
 	int16_t	 range = 0;
 	int16_t	 revs = 0;
 	int16_t	 ratio = 0;
-	uint16_t chosenAt = (uint16_t)(drivingAt + DRIVING_GEAR_RECORDS);
+	uint16_t chosenAt = 0;
 
 	for (;;) {
 		ratio = exe_readS16(
@@ -1437,7 +1437,8 @@ static void driving__advanceOpponent(void) {
 		}
 		driving__writeS16(DRIVING_WEAVE_READY, 1);
 
-	} else if (lead > 6) {
+		/* A little ahead or a little behind (-6 < lead <= -4): same chase. */
+	} else if (lead > 6) { // NOLINT(bugprone-branch-clone)
 		driving__chaseLane(curveDelta, roadFlags, midLane);
 
 	} else if (lead > closeLead) {

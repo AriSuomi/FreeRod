@@ -615,7 +615,11 @@ static int16_t plat__soundSample(void) {
 		}
 	}
 
-	/* Levels are kept times 256 for the filters. */
+	/*
+	 * Levels are kept times 256 for the filters. steps is 24 or 25: the
+	 * rest stays below SOUND_SAMPLE_HZ.
+	 */
+	// NOLINTNEXTLINE(clang-analyzer-core.DivideZero)
 	int32_t input = (int32_t)(high * (SOUND_AMPLITUDE * 256) / steps);
 
 	int32_t lastLowPass = plat__soundLowPass;
@@ -705,8 +709,11 @@ static void plat__soundFinishWav(void) {
 		return;
 	}
 
+	/* WAV tags are bytes without a terminator. */
+	// NOLINTNEXTLINE(bugprone-not-null-terminated-result)
 	memcpy(header, "RIFF", 4);
 	plat__soundWriteU32(header + 4, plat__soundWavBytes + 36);
+	// NOLINTNEXTLINE(bugprone-not-null-terminated-result)
 	memcpy(header + 8, "WAVEfmt ", 8);
 	plat__soundWriteU32(header + 16, 16);
 
@@ -717,6 +724,7 @@ static void plat__soundFinishWav(void) {
 
 	/* 2 bytes per sample frame, 16 bits per sample. */
 	plat__soundWriteU32(header + 32, 0x00100002);
+	// NOLINTNEXTLINE(bugprone-not-null-terminated-result)
 	memcpy(header + 36, "data", 4);
 	plat__soundWriteU32(header + 40, plat__soundWavBytes);
 

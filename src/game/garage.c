@@ -2260,8 +2260,8 @@ static bool garage__changeGearbox(
 		uint8_t	 fits = *exe_data((uint16_t)(entry + GARAGE_PART_FITS));
 		int16_t	 previous = exe_readS16(GARAGE_GEARBOX_PICTURE);
 		int16_t	 picture = exe_readS16(
-			(uint16_t)(GARAGE_GEARBOX_PICTURES + subtype * 2)
-		);
+			 (uint16_t)(GARAGE_GEARBOX_PICTURES + subtype * 2)
+		 );
 
 		exe_writeU16(GARAGE_GEARBOX_PICTURE, (uint16_t)picture);
 
@@ -2400,9 +2400,13 @@ void garage_gearbox(void) {
 		uint16_t hotspot =
 			(uint16_t)(GARAGE_BOLT_HOTSPOTS + bolt * GARAGE_ELEMENT_SIZE);
 
-		modes[bolt] = state == 0 ? GARAGE_BOLT_MISSING
-			: state == 1		 ? GARAGE_BOLT_TIGHTEN
-								 : GARAGE_BOLT_LOOSEN;
+		if (state == 0) {
+			modes[bolt] = GARAGE_BOLT_MISSING;
+		} else if (state == 1) {
+			modes[bolt] = GARAGE_BOLT_TIGHTEN;
+		} else {
+			modes[bolt] = GARAGE_BOLT_LOOSEN;
+		}
 		exe_writeU16(hotspot, GARAGE_TYPE_HOT);
 	}
 

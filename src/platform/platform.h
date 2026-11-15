@@ -251,15 +251,15 @@ plat_ImageHandle plat_imageCreateOverlay(
 );
 
 void plat_imageDestroy(
-	plat_ImageHandle image
+	plat_ImageHandle imageHandle
 );
 
 bool plat_imageIsReplaced(
-	plat_ImageHandle image
+	plat_ImageHandle imageHandle
 );
 
 void plat_drawImage(
-	plat_ImageHandle image,
+	plat_ImageHandle imageHandle,
 	int				 left,
 	int				 top
 );

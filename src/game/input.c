@@ -32,11 +32,11 @@
 ;
 ;-----------------------------------------------------------------------------*/
 
-#define INPUT_BIOS_EVERY	 3	  /**< Countdown: BIOS tick every 4th tick. */
-#define INPUT_QUIET_TICKS	 10	  /**< input_flush: ticks without a key. */
-#define INPUT_RELEASE		 0x80 /**< Scan code bit of a release. */
-#define INPUT_LAST_INDEX	 0x56 /**< Table index of higher scan codes. */
-#define INPUT_MIN_CODE		 -30  /**< Lowest direction code. */
+#define INPUT_BIOS_EVERY	 3	   /**< Countdown: BIOS tick every 4th tick. */
+#define INPUT_QUIET_TICKS	 10	   /**< input_flush: ticks without a key. */
+#define INPUT_RELEASE		 0x80  /**< Scan code bit of a release. */
+#define INPUT_LAST_INDEX	 0x56  /**< Table index of higher scan codes. */
+#define INPUT_MIN_CODE		 (-30) /**< Lowest direction code. */
 
 #define INPUT_HELD_KEY		 0x01 /**< globals_buttonsHeld: click key. */
 #define INPUT_HELD_JOYSTICK	 0x02 /**< globals_buttonsHeld: joystick. */

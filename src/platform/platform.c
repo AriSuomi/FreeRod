@@ -518,7 +518,7 @@ void plat_setPaletteEntry(
 		return;
 	}
 
-	uint32_t color = 0xff000000u | ((uint32_t)red << 16) |
+	uint32_t color = 0xff000000U | ((uint32_t)red << 16) |
 		((uint32_t)green << 8) | blue;
 
 	if (plat__palette[index] != color) {
@@ -627,7 +627,7 @@ void plat_fillRect(
 
 /** ****************************************************************************
  *
- * rief	Copy a rectangle from one page to another.
+ * \brief	Copy a rectangle from one page to another.
  *
  * \param	sourcePage		Page to copy from.
  * \param	destinationPage	Page to copy to.
@@ -652,7 +652,7 @@ void plat_copyRect(
 
 /** ****************************************************************************
  *
- * rief	Copy a rectangle from one page to another place on another
+ * \brief	Copy a rectangle from one page to another place on another
  * 			page.
  *
  * \param	sourcePage		Page to copy from.
@@ -1225,7 +1225,7 @@ static plat_ImageHandle plat__createImage(
  *
  * \brief	Destroy an image.
  *
- * \param	id				Handle of the image.
+ * \param	imageHandle		Handle of the image.
  *
  * \details	An image still drawn on a page stays until no page draws it
  * 			(it is freed when an image is created), so the page keeps
@@ -1234,15 +1234,15 @@ static plat_ImageHandle plat__createImage(
  *
  ******************************************************************************/
 void plat_imageDestroy(
-	plat_ImageHandle id
+	plat_ImageHandle imageHandle
 ) {
-	plat__Image * pImage = plat__getImage(id);
+	plat__Image * pImage = plat__getImage(imageHandle);
 
 	if (!pImage) {
 		return;
 	}
 
-	if (plat__isDrawn(id)) {
+	if (plat__isDrawn(imageHandle)) {
 		pImage->released = true;
 		return;
 	}
@@ -1254,16 +1254,16 @@ void plat_imageDestroy(
  *
  * \brief	Check if an image is drawn from a replacement PNG.
  *
- * \param	id				Handle of the image.
+ * \param	imageHandle		Handle of the image.
  *
  * \retval	true	A replacement PNG was found.
  * \retval	false	The original pixels are drawn.
  *
  ******************************************************************************/
 bool plat_imageIsReplaced(
-	plat_ImageHandle id
+	plat_ImageHandle imageHandle
 ) {
-	const plat__Image * pImage = plat__getImage(id);
+	const plat__Image * pImage = plat__getImage(imageHandle);
 
 	return pImage && pImage->pReplacement;
 }
@@ -1272,7 +1272,7 @@ bool plat_imageIsReplaced(
  *
  * \brief	Add an image to the image layer of the selected page.
  *
- * \param	image			Handle of the image.
+ * \param	imageHandle		Handle of the image.
  * \param	left			Left edge in 320x200 coordinates.
  * \param	top				Top edge in 320x200 coordinates.
  *
@@ -1281,14 +1281,14 @@ bool plat_imageIsReplaced(
  *
  ******************************************************************************/
 void plat_drawImage(
-	plat_ImageHandle image,
+	plat_ImageHandle imageHandle,
 	int				 left,
 	int				 top
 ) {
-	const plat__Image * pImage = plat__getImage(image);
+	const plat__Image * pImage = plat__getImage(imageHandle);
 
 	if (pImage) {
-		plat_drawImageRows(image, left, top, pImage->height);
+		plat_drawImageRows(imageHandle, left, top, pImage->height);
 	}
 }
 
@@ -1451,12 +1451,10 @@ void plat_setCursor(
 ) {
 	bool shown = image != 0;
 
-	if (shown != (plat__cursorImage != 0)) {
-		if (shown) {
-			SDL_HideCursor();
-		} else {
-			SDL_ShowCursor();
-		}
+	if (shown && plat__cursorImage == 0) {
+		SDL_HideCursor();
+	} else if (!shown && plat__cursorImage != 0) {
+		SDL_ShowCursor();
 	}
 
 	plat__cursorImage = image;
@@ -2503,11 +2501,11 @@ static void plat__showImageThrough(
 	for (int row = pClip->y; row < pClip->y + pClip->h; row++) {
 		const uint8_t * pInput = pImage->pPixels +
 			(size_t)(row - top) * pImage->width + (pClip->x - left);
-		uint8_t * pOutput = pPage->pixels + row * PLAT_WIDTH + pClip->x;
+		int output = row * PLAT_WIDTH + pClip->x;
 
 		for (int column = 0; column < pClip->w; column++) {
 			if (pInput[column] != pImage->seeThrough) {
-				pOutput[column] = PLAT_TRANSPARENT;
+				pPage->pixels[output + column] = PLAT_TRANSPARENT;
 			}
 		}
 	}
@@ -2851,7 +2849,7 @@ static int plat__translateKey(
 
 /** ****************************************************************************
  *
- * rief	Check if a page draws an image.
+ * \brief	Check if a page draws an image.
  *
  * \param	id				Handle of the image.
  *
@@ -2879,7 +2877,7 @@ static bool plat__isDrawn(
 
 /** ****************************************************************************
  *
- * rief	Free an image's pixels and textures and its slot.
+ * \brief	Free an image's pixels and textures and its slot.
  *
  * \param	pImage			The image.
  *
