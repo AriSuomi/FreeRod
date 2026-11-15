@@ -2503,11 +2503,11 @@ static void plat__showImageThrough(
 	for (int row = pClip->y; row < pClip->y + pClip->h; row++) {
 		const uint8_t * pInput = pImage->pPixels +
 			(size_t)(row - top) * pImage->width + (pClip->x - left);
-		uint8_t * pOutput = pPage->pixels + row * PLAT_WIDTH + pClip->x;
+		int output = row * PLAT_WIDTH + pClip->x;
 
 		for (int column = 0; column < pClip->w; column++) {
 			if (pInput[column] != pImage->seeThrough) {
-				pOutput[column] = PLAT_TRANSPARENT;
+				pPage->pixels[output + column] = PLAT_TRANSPARENT;
 			}
 		}
 	}
