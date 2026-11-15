@@ -627,7 +627,7 @@ void plat_fillRect(
 
 /** ****************************************************************************
  *
- * rief	Copy a rectangle from one page to another.
+ * \brief	Copy a rectangle from one page to another.
  *
  * \param	sourcePage		Page to copy from.
  * \param	destinationPage	Page to copy to.
@@ -652,7 +652,7 @@ void plat_copyRect(
 
 /** ****************************************************************************
  *
- * rief	Copy a rectangle from one page to another place on another
+ * \brief	Copy a rectangle from one page to another place on another
  * 			page.
  *
  * \param	sourcePage		Page to copy from.
@@ -2851,7 +2851,7 @@ static int plat__translateKey(
 
 /** ****************************************************************************
  *
- * rief	Check if a page draws an image.
+ * \brief	Check if a page draws an image.
  *
  * \param	id				Handle of the image.
  *
@@ -2879,7 +2879,7 @@ static bool plat__isDrawn(
 
 /** ****************************************************************************
  *
- * rief	Free an image's pixels and textures and its slot.
+ * \brief	Free an image's pixels and textures and its slot.
  *
  * \param	pImage			The image.
  *

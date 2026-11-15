@@ -564,7 +564,7 @@ void music_pause(
 
 /** ****************************************************************************
  *
- * rief	Play a looping effect track in place of the music, or go back
+ * \brief	Play a looping effect track in place of the music, or go back
  * 			to the music.
  *
  * \param	offset			Offset of the track in its segment.
@@ -623,7 +623,7 @@ void music_playEffectTrack(
 
 /** ****************************************************************************
  *
- * rief	Set the vibrato of the effect track that was just started.
+ * \brief	Set the vibrato of the effect track that was just started.
  *
  * \param	enable			Not 0: use the vibrato given here. 0: no vibrato.
  * \param	row				Row of the vibrato table.
