@@ -142,7 +142,7 @@ void cars_draw(
 	int16_t	 sticker,
 	int16_t	 hoodOpen,
 	int16_t	 bottomY,
-	int16_t	 drawPost,
+	int16_t	 foreground,
 	uint16_t tireTable
 );
 

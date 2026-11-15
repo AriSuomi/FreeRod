@@ -64,7 +64,7 @@
 #define ROADCAR__SIDE_BY_SIDE  0x8bc2 /**< s16: 1: the cars are beside. */
 
 #define ROADCAR__FAST_MACHINE  4	/**< Machine speed that steps. */
-#define ROADCAR__GONE		   -1	/**< Position: out of sight. */
+#define ROADCAR__GONE		   (-1)	/**< Position: out of sight. */
 #define ROADCAR__BESIDE_REAR   0	/**< Position: beside, its rear. */
 #define ROADCAR__BESIDE		   1	/**< Position: beside, ahead. */
 #define ROADCAR__JUST_AHEAD	   2	/**< Position: just ahead. */
