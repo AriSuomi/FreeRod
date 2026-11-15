@@ -1083,7 +1083,7 @@ static void race__drawClipped(
 		length++;
 	}
 
-	if (width >= limit) {
+	if (width >= limit && length > 0) {
 		length--;
 	}
 
