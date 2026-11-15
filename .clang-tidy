@@ -1,0 +1,51 @@
+# Lightweight Lists (LwL) - clang-tidy checks for the embedded C code.
+#
+# A "-" in front of a pattern turns those checks off. Later entries override
+# earlier ones, so disable single checks after the group that enables them.
+# List of checks: https://clang.llvm.org/extra/clang-tidy/checks/list.html
+
+Checks: >
+  -*,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-implicit-widening-of-multiplication-result,
+  -bugprone-narrowing-conversions,
+  -bugprone-reserved-identifier,
+  -bugprone-signed-bitwise,
+  -bugprone-signed-char-misuse,
+  -bugprone-unchecked-string-to-number-conversion,
+  cert-*,
+  -cert-dcl37-c,
+  -cert-dcl51-cpp,
+  -cert-err33-c,
+  -cert-err34-c,
+  -cert-int09-c,
+  -cert-str34-c,
+  clang-analyzer-*,
+  -clang-analyzer-optin.performance.Padding,
+  -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,
+  -clang-analyzer-security.insecureAPI.strcpy,
+  misc-*,
+  -misc-include-cleaner,
+  performance-*,
+  -performance-no-int-to-ptr,
+  portability-*,
+  -portability-no-assembler,
+  readability-*,
+  -readability-enum-initial-value,
+  -readability-identifier-length,
+  -readability-magic-numbers,
+  -readability-math-missing-parentheses,
+  -readability-redundant-casting,
+  -readability-suspicious-call-argument,
+  -readability-trailing-comma,
+
+# Warnings in these headers are reported too (not only in the .c files).
+HeaderFilterRegex: '.*[/\\]src[/\\].*'
+
+WarningsAsErrors: ''
+
+CheckOptions:
+  # Warn about functions that are hard to follow (default threshold: 25).
+  readability-function-cognitive-complexity.Threshold: 250
+  readability-implicit-bool-conversion.AllowLogicalOperatorConversion: true

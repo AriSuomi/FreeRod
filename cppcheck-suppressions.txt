@@ -1,0 +1,18 @@
+# Lightweight Lists (LwL) - cppcheck suppressions for the embedded C code.
+#
+# One check ID per line, optionally limited to files or a line:
+#   id                    everywhere
+#   id:path/file.c        in one file (wildcards * and ? work)
+#   id:path/file.c:123    on one line
+# Which categories run is set with --enable= on the command line (see CLAUDE.md).
+# The ID of a finding is shown in [brackets] with --template='{file}:{line}: {severity} [{id}] {message}'.
+
+# The standard library headers are not needed for the analysis.
+missingIncludeSystem
+
+# Summary of the active checkers, printed after every run.
+checkersReport
+
+# globals_keyboardBusy = -1 ... = 0 is the original's guard against the
+# keyboard interrupt; kept for a faithful port.
+redundantAssignment:src/game/input.c
