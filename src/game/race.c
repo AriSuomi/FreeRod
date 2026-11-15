@@ -1087,12 +1087,13 @@ static void race__drawClipped(
 		length--;
 	}
 
-	if (length > maxLength) {
+	if (maxLength >= 0 && length > maxLength) {
 		length = maxLength;
 	}
 
 	memcpy(text, pText, (size_t)length);
-	text[length] = 0;
+	/* length <= most: the analyzer loses that bound across the loop. */
+	text[length] = 0; // NOLINT(clang-analyzer-security.ArrayBound)
 	text_draw(globals_workSurface, RACE_TICKET_TEXT_X, top, text);
 }
 

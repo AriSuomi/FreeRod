@@ -2210,6 +2210,11 @@ int16_t ui_list(
 			if (topItem != 0) {
 				topItem--;
 			}
+		} else if (result == UI_LIST_EDIT_KEY && pInputText == NULL) {
+			/*
+			 * Not in the original, which edits through whatever pointer it
+			 * has: without an input field the key is ignored.
+			 */
 		} else if (result == UI_LIST_EDIT_KEY) {
 			if (screen == 5 && strcmp(pInputText, exe_text(0x4607)) == 0) {
 				strcpy(pInputText, exe_text(0x7c4));

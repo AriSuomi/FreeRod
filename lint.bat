@@ -67,8 +67,10 @@ if not defined USER_FILES if defined PYTHON_EXE if defined RUN_CLANG_TIDY (
 clang-tidy -p "%DB_DIR%" --quiet %FILES% > "%LOG_DIR%\clang-tidy.log" 2>&1
 :count_tidy
 rem Counted with "for /f": "find" may be the Unix one from Git on PATH.
+rem "^error: " catches failures without a source line (a missing file), which
+rem would otherwise show as 0 findings.
 set "TIDY_COUNT=0"
-for /f "delims=" %%L in ('findstr /r /c:": warning: " /c:": error: " "%LOG_DIR%\clang-tidy.log"') do (
+for /f "delims=" %%L in ('findstr /r /c:": warning: " /c:": error: " /c:"^error: " "%LOG_DIR%\clang-tidy.log"') do (
     echo %%L
     set /a TIDY_COUNT+=1
 )
