@@ -813,7 +813,9 @@ static void drive__drawGear(
  * 			many rows as the record says, and the knob over it with
  * 			color 0 see-through. The original's pictures hold the gate
  * 			only as wide as the knob and 8 columns and as high as the
- * 			knob; the port draws no more than that.
+ * 			knob; the port draws no more than that. Since those pictures
+ * 			start on the gate's byte column, the knob keeps its exact
+ * 			column (screen_drawSpritePartExact).
  *
  ******************************************************************************/
 static void drive__drawKnob(
@@ -875,7 +877,7 @@ static void drive__drawKnob(
 		knobWidth = (int16_t)(aligned + width - column);
 	}
 
-	screen_drawSpritePart(
+	screen_drawSpritePartExact(
 		surface,
 		knobId,
 		0,

@@ -855,8 +855,9 @@ static plat_ImageHandle station__pumpImage(
  * 			DS:0x28c (with the nozzle) and DS:0x290 (without), and for
  * 			FUN_1000_b61b, which puts the cap box back and draws the cap
  * 			(0x472) or the nozzle (0x471) in it, its right edge 8 columns
- * 			right of the filler and its bottom 7 rows below it. The cap
- * 			box clips the sprite. The foreground goes back in front of
+ * 			right of the filler and its bottom 7 rows below it, at the
+ * 			exact column (FUN_1f38_af50 shifts it first). The cap box
+ * 			clips the sprite. The foreground goes back in front of
  * 			the car outside the pump column; the pump column has its
  * 			mask, so the car shows behind the hose.
  *
@@ -901,7 +902,7 @@ static void station__drawScene(
 			height = STATION_CAP_ROWS;
 		}
 
-		screen_drawSpritePart(
+		screen_drawSpritePartExact(
 			globals_workSurface,
 			capId,
 			sourceLeft,

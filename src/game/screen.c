@@ -195,8 +195,10 @@ plat_ImageHandle screen_resourceImage(
  * 			globals_drawTop (then resets both to 0), at most
  * 			globals_drawHeight rows, and copies the rectangle to the
  * 			display surface while globals_drawThrough is set. The blit is
- * 			a plain copy (mode 1): color 0 of a sprite is drawn too. Not
- * 			ported: FUN_1f38_a0b8(1) at the end (use unknown).
+ * 			a plain copy (mode 1): color 0 of a sprite is drawn too. As
+ * 			with every blit of the video table, the column is rounded
+ * 			down to a multiple of 8 (screen_byteColumn). Not ported:
+ * 			FUN_1f38_a0b8(1) at the end (use unknown).
  *
  ******************************************************************************/
 void screen_drawResource(
@@ -226,7 +228,7 @@ void screen_drawResource(
 		height = globals_drawHeight;
 	}
 
-	int16_t left = globals_drawLeft;
+	int16_t left = screen_byteColumn(globals_drawLeft);
 	int16_t top = globals_drawTop;
 
 	cursor_set(CURSOR_HIDE);
@@ -241,6 +243,25 @@ void screen_drawResource(
 
 	globals_drawTop = 0;
 	globals_drawLeft = 0;
+}
+
+/** ****************************************************************************
+ *
+ * \brief	Round a column down to a byte column of the screen.
+ *
+ * \param	column			Column, width or source column in pixels.
+ *
+ * \return	column rounded down to a multiple of 8 (also below 0).
+ *
+ * \details	What FUN_1f38_1680 does to the columns of every blit of the
+ * 			video table (an arithmetic shift by DS:0x823a, 3 in the
+ * 			16-color mode, mask DS:0x823e 0xfff8).
+ *
+ ******************************************************************************/
+int16_t screen_byteColumn(
+	int16_t column
+) {
+	return (int16_t)(column & SCREEN_BYTE_MASK);
 }
 
 /** ****************************************************************************
@@ -1040,12 +1061,61 @@ int screen_savedPage(
  * 							copy, blit mode 1); false: it stays
  * 							see-through.
  *
- * \details	Stands in for the video table's blit (entry 0, DS:0x78a2)
- * 			of a rectangle of a decoded resource. Nothing is copied to
- * 			the display.
+ * \details	Stands in for the video table's blits of a rectangle of a
+ * 			decoded resource (entry 0, DS:0x78a2, and entry 2 with mask,
+ * 			DS:0x78aa). Both clip with FUN_1f38_1680, which turns the
+ * 			source column, the width and the target column into byte
+ * 			columns (shift DS:0x823a, 3 in the 16-color mode), so each
+ * 			is rounded down to a multiple of 8 (screen_byteColumn).
+ * 			Nothing is copied to the display.
  *
  ******************************************************************************/
 void screen_drawSpritePart(
+	int		surface,
+	int16_t gameId,
+	int16_t sourceLeft,
+	int16_t sourceTop,
+	int16_t width,
+	int16_t height,
+	int16_t left,
+	int16_t top,
+	bool	opaque
+) {
+	screen_drawSpritePartExact(
+		surface,
+		gameId,
+		screen_byteColumn(sourceLeft),
+		sourceTop,
+		screen_byteColumn(width),
+		height,
+		screen_byteColumn(left),
+		top,
+		opaque
+	);
+}
+
+/** ****************************************************************************
+ *
+ * \brief	Draw a part of a resource at exact columns.
+ *
+ * \param	surface			Surface to draw on.
+ * \param	gameId			The game's resource number.
+ * \param	sourceLeft		Left edge of the part in the resource.
+ * \param	sourceTop		Top edge of the part in the resource.
+ * \param	width			Width of the part.
+ * \param	height			Height of the part.
+ * \param	left			Where its left edge goes.
+ * \param	top				Where its top edge goes.
+ * \param	opaque			As for screen_drawSpritePart.
+ *
+ * \details	Like screen_drawSpritePart without rounding the columns.
+ * 			Stands in for blits of sprites the original shifted to the
+ * 			column first (FUN_1f38_acbf) or composed into a picture
+ * 			that starts on a byte column. Nothing is copied to the
+ * 			display.
+ *
+ ******************************************************************************/
+void screen_drawSpritePartExact(
 	int		surface,
 	int16_t gameId,
 	int16_t sourceLeft,

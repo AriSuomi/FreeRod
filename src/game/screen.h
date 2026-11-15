@@ -65,6 +65,10 @@ void screen_drawResource(
 	int16_t clearColor
 );
 
+int16_t screen_byteColumn(
+	int16_t column
+);
+
 void screen_drawResourceAt(
 	int16_t gameId,
 	int16_t left,
@@ -197,6 +201,18 @@ int screen_savedPage(
 );
 
 void screen_drawSpritePart(
+	int		surface,
+	int16_t gameId,
+	int16_t sourceLeft,
+	int16_t sourceTop,
+	int16_t width,
+	int16_t height,
+	int16_t left,
+	int16_t top,
+	bool	opaque
+);
+
+void screen_drawSpritePartExact(
 	int		surface,
 	int16_t gameId,
 	int16_t sourceLeft,

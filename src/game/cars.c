@@ -2275,7 +2275,9 @@ static void cars__saveWaitress(void) {
  * 			strip at row 0x44, behind mask 0x474, the bars of place 6 and
  * 			any standing opponent car. At the end the overlap with the
  * 			70-row car strip in CARS_BACKGROUND_PAGE at (200, 0x5e) is
- * 			updated (FUN_1f38_975b).
+ * 			updated (FUN_1f38_975b). The original shifts each frame to
+ * 			its column (FUN_1f38_acbf), so the port draws it at the
+ * 			exact column.
  *
  ******************************************************************************/
 void cars_waitress(
@@ -2348,7 +2350,7 @@ void cars_waitress(
 			CARS_WAITRESS_STRIP,
 			CARS_WAITRESS_HEIGHT
 		);
-		screen_drawSpritePart(
+		screen_drawSpritePartExact(
 			globals_displaySurface,
 			sheetId,
 			(int16_t)((frame % sheetColumns) * frameWidth),

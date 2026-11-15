@@ -35,6 +35,7 @@
 #include "game/roaddraw.h"
 #include "game/roadpic.h"
 #include "game/roadstate.h"
+#include "game/screen.h"
 #include "platform/platform.h"
 
 /*******************************************************************************
@@ -465,26 +466,31 @@ static uint16_t roadcar__word(
  * \param	pRect			The part and where it goes.
  *
  * \details	Video table entry 2 (DS:0x78aa) on DS:0x8188: color 0
- * 			stays see-through. A rectangle without rows or columns is
- * 			not drawn.
+ * 			stays see-through. Its clipping (FUN_1f38_1680) rounds the
+ * 			source column, the width and the target column down to
+ * 			multiples of 8 (screen_byteColumn), so the car moves across
+ * 			in steps of 8 columns. A rectangle without rows or columns
+ * 			(after rounding) is not drawn.
  *
  ******************************************************************************/
 static void roadcar__blit(
 	const roadpic_Picture * pPicture,
 	const roaddraw_Rect *	pRect
 ) {
-	if (pRect->width <= 0 || pRect->height <= 0) {
+	int16_t width = screen_byteColumn(pRect->width);
+
+	if (width <= 0 || pRect->height <= 0) {
 		return;
 	}
 
 	plat_selectPage(roaddraw_view);
 	plat_drawImagePart(
 		pPicture->image,
-		pRect->sourceLeft,
+		screen_byteColumn(pRect->sourceLeft),
 		pRect->sourceTop,
-		pRect->width,
+		width,
 		pRect->height,
-		pRect->left,
+		screen_byteColumn(pRect->left),
 		pRect->top,
 		NULL
 	);
