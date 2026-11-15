@@ -1816,8 +1816,13 @@ void hood_open(
 
 	int8_t part = (int8_t)*exe_data((uint16_t)(carAt + HOOD_CAR_PART));
 
-	hood__fastener = part == 0 ? 0 : part < 1 ? HOOD_UNDONE
-											  : HOOD_DONE_UP;
+	if (part == 0) {
+		hood__fastener = 0;
+	} else if (part < 1) {
+		hood__fastener = HOOD_UNDONE;
+	} else {
+		hood__fastener = HOOD_DONE_UP;
+	}
 
 	uint16_t engine = exe_readU16((uint16_t)(carAt + STATE_CAR_ENGINE));
 

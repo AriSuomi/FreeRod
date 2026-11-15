@@ -774,7 +774,13 @@ static void game__makeAds(void) {
 	for (int16_t model = 0; model < STATE_MODEL_COUNT; model++) {
 		int		record = STATE_MODELS + model * STATE_MODEL_SIZE;
 		uint8_t level = *exe_data((uint16_t)(record + STATE_MODEL_CLASS));
-		int		list = level < 3 ? 0 : (level < 6 ? 1 : 2);
+		int		list = 2;
+
+		if (level < 3) {
+			list = 0;
+		} else if (level < 6) {
+			list = 1;
+		}
 
 		lists[list][++lists[list][0]] = model;
 	}
