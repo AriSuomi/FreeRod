@@ -1041,8 +1041,13 @@ static void station__leave(
 	}
 
 	for (int step = 0; step < 2; step++) {
-		bool nozzleOut = step == 0 ? pVisit->nozzleInTank
-								   : !pVisit->nozzleOnPump;
+		bool nozzleOut = false;
+
+		if (step == 0) {
+			nozzleOut = pVisit->nozzleInTank;
+		} else {
+			nozzleOut = !pVisit->nozzleOnPump;
+		}
 
 		if (!nozzleOut) {
 			continue;

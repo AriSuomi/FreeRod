@@ -1451,12 +1451,10 @@ void plat_setCursor(
 ) {
 	bool shown = image != 0;
 
-	if (shown != (plat__cursorImage != 0)) {
-		if (shown) {
-			SDL_HideCursor();
-		} else {
-			SDL_ShowCursor();
-		}
+	if (shown && plat__cursorImage == 0) {
+		SDL_HideCursor();
+	} else if (!shown && plat__cursorImage != 0) {
+		SDL_ShowCursor();
 	}
 
 	plat__cursorImage = image;

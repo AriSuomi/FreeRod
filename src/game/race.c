@@ -1139,7 +1139,7 @@ static void race__crashPicture(void) {
 		sceneWidth,
 		(int16_t)(sceneHeight - RACE_CRASH_SPLIT),
 		0,
-		(int16_t)(RACE_CRASH_SPLIT + tall + RACE_CRASH_Y),
+		(int16_t)(RACE_CRASH_SPLIT + (tall ? 1 : 0) + RACE_CRASH_Y),
 		false
 	);
 	screen_drawSpritePart(
@@ -1150,7 +1150,7 @@ static void race__crashPicture(void) {
 		race__width(RACE_CRASH_BOTTOM),
 		bottomHeight,
 		0,
-		(int16_t)(RACE_CRASH_BOTTOM_Y + tall),
+		(int16_t)(RACE_CRASH_BOTTOM_Y + (tall ? 1 : 0)),
 		true
 	);
 	drive_crashMark(exe_readS16(RACE_WHEEL));
