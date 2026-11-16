@@ -7,59 +7,21 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 # compile_commands.json in the build directory, used by lint.bat.
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# The portable part (main.c, dos/, game/) as the library freerod_core.
+add_subdirectory(src)
+
+# The PC build: freerod_core with the SDL platform layer.
 find_package(SDL3 CONFIG REQUIRED)
 find_package(SDL3_image CONFIG REQUIRED)
 
 add_executable(freerod
-    src/main.c
-    src/dos/dos.c
-    src/dos/fpu.c
-    src/game/anim.c
-    src/game/calendar.c
-    src/game/cars.c
-    src/game/challenge.c
-    src/game/cursor.c
-    src/game/drive.c
-    src/game/driving.c
-    src/game/event.c
-    src/game/exe.c
-    src/game/game.c
-    src/game/garage.c
-    src/game/hood.c
-    src/game/station.c
-    src/game/street.c
-    src/game/race.c
-    src/game/fame.c
-    src/game/mover.c
-    src/game/globals.c
-    src/game/hotdata.c
-    src/game/input.c
-    src/game/lib.c
-    src/game/opening.c
-    src/game/paper.c
-    src/game/question.c
-    src/game/effects.c
-    src/game/music.c
-    src/game/random.c
-    src/game/road.c
-    src/game/roaddraw.c
-    src/game/roadpic.c
-    src/game/roadstate.c
-    src/game/roadcar.c
-    src/game/roadview.c
-    src/game/save.c
-    src/game/screen.c
-    src/game/text.c
-    src/game/ui.c
-    src/game/video.c
     src/platform/platform.c
     src/platform/sound.c
 )
 
-target_include_directories(freerod PRIVATE src)
-
 # No SDL_main: platform.c defines SDL_MAIN_HANDLED and calls SDL_SetMainReady.
 target_link_libraries(freerod PRIVATE
+    freerod_core
     SDL3::SDL3
     SDL3_image::SDL3_image
 )
